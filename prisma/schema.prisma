@@ -1,0 +1,321 @@
+// Prisma schema for Arc Markets (play-money MVP)
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 resolves the connection URL from prisma.config.ts (DATABASE_URL), not here.
+  // At this scale, one Supabase connection string (pooled, :6543) is used for both the
+  // app and `prisma migrate`/`db push` — no separate direct URL needed tonight.
+}
+
+// Mirrors a Supabase auth.users row (id is the Supabase auth user id, not generated here).
+model User {
+  id              String   @id
+  email           String   @unique
+  sleeperUsername String?
+  sleeperUserId   String?
+  activeLeagueId  String?
+  activeLeague    League?  @relation(fields: [activeLeagueId], references: [id])
+  createdAt       DateTime @default(now())
+
+  ledgerEntries      LedgerEntry[]
+  trades             Trade[]
+  positions          Position[]
+  fantasyMemberships FantasyLeagueMember[]
+}
+
+// One imported Sleeper league = one market. Players/prices are scoped per league.
+model League {
+  id              String   @id @default(cuid())
+  sleeperLeagueId String   @unique
+  name            String
+  season          String
+  totalRosters    Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users   User[]
+  rosters SleeperRoster[]
+  players Player[]
+}
+
+// A real Sleeper manager's roster within an imported league (not an Arc Markets account).
+model SleeperRoster {
+  id              String  @id @default(cuid())
+  leagueId        String
+  league          League  @relation(fields: [leagueId], references: [id])
+  sleeperRosterId Int
+  sleeperOwnerId  String?
+  displayName     String
+  teamName        String?
+  avatarUrl       String?
+
+  players Player[]
+
+  @@unique([leagueId, sleeperRosterId])
+}
+
+// A tradeable player, scoped to one league's market (only players on that league's rosters).
+// currentPrice/supply are a cache of the bonding curve: price = basePrice + slope * supply.
+// Recomputed transactionally on every trade — never hand-edited outside that path.
+model Player {
+  id              String         @id @default(cuid())
+  leagueId        String
+  league          League         @relation(fields: [leagueId], references: [id])
+  sleeperPlayerId String // still used to match live Sleeper matchup/roster data (Matchup tab)
+  nflverseId      String?        @unique // gsis_id — join key into nflverse's independent player data
+  fullName        String
+  team            String?
+  position        String
+  headshotUrl     String? // from nflverse (static.www.nfl.com), not Sleeper's CDN
+  rosterId        String?
+  roster          SleeperRoster? @relation(fields: [rosterId], references: [id])
+
+  basePrice    Decimal @db.Decimal(12, 4) // immutable floor price set at import (supply = 0)
+  slope        Decimal @default(0.01) @db.Decimal(10, 6) // bonding-curve steepness
+  supply       Int     @default(0) // net contracts outstanding across all users, >= 0 (no naked shorting tonight)
+  currentPrice Decimal @db.Decimal(12, 4) // cached = basePrice + slope * supply
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ledgerEntries LedgerEntry[]
+  trades        Trade[]
+  positions     Position[]
+  weeklyStats   PlayerWeeklyStat[]
+
+  @@unique([leagueId, sleeperPlayerId])
+}
+
+// Real weekly fantasy stats from nflverse, seeded at league-import time. Historical/slow-changing
+// (nflverse updates roughly weekly during the season), so this is owned in our own DB rather than
+// fetched live per request.
+model PlayerWeeklyStat {
+  id        String  @id @default(cuid())
+  playerId  String
+  player    Player  @relation(fields: [playerId], references: [id])
+  season    String
+  week      Int
+  pointsPpr Decimal @db.Decimal(6, 2)
+
+  @@unique([playerId, season, week])
+}
+
+enum LedgerEntryType {
+  CASH
+  POSITION
+}
+
+// Append-only double-entry ledger. A user's cash balance is ALWAYS sum(CASH entries) —
+// there is no stored balance field anywhere. Every trade writes exactly two rows here
+// (one CASH, one POSITION); a signup seed grant writes one CASH row with tradeId null.
+model LedgerEntry {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  type      LedgerEntryType
+  playerId  String? // set only for POSITION entries
+  player    Player?         @relation(fields: [playerId], references: [id])
+  amount    Decimal         @db.Decimal(14, 4) // signed: CASH = play-money dollars, POSITION = contracts
+  tradeId   String? // null for non-trade entries (e.g. initial seed grant)
+  trade     Trade?          @relation(fields: [tradeId], references: [id])
+  note      String? // human-readable context for non-trade entries
+  createdAt DateTime        @default(now())
+
+  @@index([userId, type])
+  @@index([userId, playerId])
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+// One executed trade against the bonding curve. Immutable once written.
+model Trade {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  playerId    String
+  player      Player    @relation(fields: [playerId], references: [id])
+  side        TradeSide
+  quantity    Decimal   @db.Decimal(12, 4)
+  price       Decimal   @db.Decimal(12, 4) // average execution price per contract
+  totalAmount Decimal   @db.Decimal(14, 4) // quantity * price, cash moved
+  priceBefore Decimal   @db.Decimal(12, 4)
+  priceAfter  Decimal   @db.Decimal(12, 4)
+  createdAt   DateTime  @default(now())
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([playerId, createdAt])
+}
+
+// Denormalized read cache of a user's net holding per player, kept in sync with the
+// ledger inside the same DB transaction as every trade. Always reconstructable from
+// sum(POSITION ledger entries) — this table exists for fast portfolio reads, not as
+// a second source of truth.
+model Position {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id])
+  quantity  Decimal  @default(0) @db.Decimal(12, 4) // net contracts held
+  costBasis Decimal  @default(0) @db.Decimal(14, 4) // net cash paid for current quantity (for unrealized P/L)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, playerId])
+}
+
+// ---------------------------------------------------------------------------
+// Arc-native fantasy leagues — entirely separate from League/SleeperRoster above,
+// which mirror an imported Sleeper league. These are leagues built and drafted
+// inside Arc Markets itself, no Sleeper involved. Not yet wired into the AMM
+// trading market — a drafted player here isn't tradeable (yet).
+// ---------------------------------------------------------------------------
+
+enum FantasyLeagueStatus {
+  FORMING
+  DRAFTING
+  ACTIVE
+}
+
+enum FantasyMemberRole {
+  COMMISSIONER
+  MEMBER
+}
+
+model FantasyLeague {
+  id              String              @id @default(cuid())
+  name            String
+  inviteCode      String              @unique
+  status          FantasyLeagueStatus @default(FORMING)
+  // NFL season this league plays against — set explicitly at creation to the live current
+  // season (the DB default below only exists so adding this column to existing rows didn't
+  // need a backfill); the commissioner can point it at an already-complete past season instead
+  // (e.g. before the live season has any real games played yet).
+  season          String              @default("2026")
+  rosterSettings  Json // slot counts — standard defaults at creation, commissioner-editable
+  scoringSettings Json // headline scoring categories — same deal
+  draftOrder      Json? // memberId[] snake order, set once when the draft starts
+  // 1-indexed overall counter: the draft's turn-order pointer while status is DRAFTING,
+  // then repurposed post-ACTIVE as a general "next roster-entry number" for free-agent
+  // pickNo assignment (nothing reads it for turn order once the draft is over). If a
+  // future feature ever redrafts an ACTIVE league (e.g. next-season rookie draft), don't
+  // reset this to 0 — it would collide with existing free-agent-add pickNo values.
+  currentPickNo   Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  members  FantasyLeagueMember[]
+  picks    FantasyDraftPick[]
+  matchups FantasyMatchup[]
+  trades   FantasyTrade[]
+}
+
+model FantasyLeagueMember {
+  id       String            @id @default(cuid())
+  leagueId String
+  league   FantasyLeague     @relation(fields: [leagueId], references: [id])
+  userId   String
+  user     User              @relation(fields: [userId], references: [id])
+  role     FantasyMemberRole @default(MEMBER)
+  teamName String?
+  joinedAt DateTime          @default(now())
+
+  picks          FantasyDraftPick[]
+  matchupsAsA    FantasyMatchup[]   @relation("FantasyMatchupMemberA")
+  matchupsAsB    FantasyMatchup[]   @relation("FantasyMatchupMemberB")
+  tradesProposed FantasyTrade[]     @relation("TradeProposer")
+  tradesReceived FantasyTrade[]     @relation("TradeRecipient")
+
+  @@unique([leagueId, userId])
+}
+
+enum RosterEntrySource {
+  DRAFT
+  FREE_AGENT
+}
+
+model FantasyDraftPick {
+  id             String              @id @default(cuid())
+  leagueId       String
+  league         FantasyLeague       @relation(fields: [leagueId], references: [id])
+  memberId       String
+  member         FantasyLeagueMember @relation(fields: [memberId], references: [id])
+  pickNo         Int // 1-indexed, overall (continues past the draft for free-agent adds)
+  round          Int? // null for free-agent adds — only draft picks have a round
+  source         RosterEntrySource   @default(DRAFT)
+  nflverseId     String // which real player — same id system as Player.nflverseId
+  playerName     String // denormalized so pick history never needs a join
+  playerTeam     String?
+  playerPosition String?
+  pickedAt       DateTime            @default(now())
+  // null = currently rostered. Dropping a player sets this rather than deleting the row —
+  // FantasyTradeItem.pickId has a required FK here, and trade history must keep working
+  // even after a traded player is later dropped. Never hard-delete a row that might have
+  // been traded; "currently rostered" everywhere else means filtering on droppedAt: null.
+  droppedAt      DateTime?
+
+  tradeItems FantasyTradeItem[]
+
+  @@unique([leagueId, pickNo])
+  // Not unique: a dropped player must be re-addable by anyone. "Not currently rostered" is
+  // enforced in the app layer (findFirst + droppedAt: null) inside a Serializable
+  // transaction, same approach executeDraftPick already uses for its own uniqueness check.
+  @@index([leagueId, nflverseId])
+}
+
+// The season schedule only — never a scored snapshot. Weekly points are always computed live
+// from real nflverse stats + the league's own scoringSettings at render time, so there's no
+// cached score to ever go stale.
+model FantasyMatchup {
+  id        String               @id @default(cuid())
+  leagueId  String
+  league    FantasyLeague        @relation(fields: [leagueId], references: [id])
+  week      Int
+  memberAId String
+  memberA   FantasyLeagueMember  @relation("FantasyMatchupMemberA", fields: [memberAId], references: [id])
+  memberBId String? // null = bye week (odd member count)
+  memberB   FantasyLeagueMember? @relation("FantasyMatchupMemberB", fields: [memberBId], references: [id])
+
+  @@unique([leagueId, week, memberAId])
+}
+
+enum FantasyTradeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model FantasyTrade {
+  id          String              @id @default(cuid())
+  leagueId    String
+  league      FantasyLeague       @relation(fields: [leagueId], references: [id])
+  proposerId  String
+  proposer    FantasyLeagueMember @relation("TradeProposer", fields: [proposerId], references: [id])
+  recipientId String
+  recipient   FantasyLeagueMember @relation("TradeRecipient", fields: [recipientId], references: [id])
+  status      FantasyTradeStatus  @default(PENDING)
+  createdAt   DateTime            @default(now())
+  respondedAt DateTime?
+
+  items FantasyTradeItem[]
+}
+
+model FantasyTradeItem {
+  id           String           @id @default(cuid())
+  tradeId      String
+  trade        FantasyTrade     @relation(fields: [tradeId], references: [id])
+  pickId       String
+  pick         FantasyDraftPick @relation(fields: [pickId], references: [id])
+  fromMemberId String // denormalized: who was giving this player up, so trade history still
+  // reads correctly even after ownership has since changed hands again
+}
