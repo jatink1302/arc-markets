@@ -163,6 +163,116 @@ export async function respondToTrade(tradeId: string, accept: boolean) {
   return { success: true as const };
 }
 
+export async function counterTrade(
+  originalTradeId: string,
+  offeredPickIds: string[],
+  requestedPickIds: string[],
+) {
+  const user = await requireUser();
+
+  if (offeredPickIds.length === 0 || requestedPickIds.length === 0) {
+    return { success: false as const, error: "Offer and request at least one player each." };
+  }
+
+  const original = await prisma.fantasyTrade.findUnique({ where: { id: originalTradeId } });
+  if (!original) return { success: false as const, error: "Trade not found." };
+
+  const me = await prisma.fantasyLeagueMember.findUnique({
+    where: { leagueId_userId: { leagueId: original.leagueId, userId: user.id } },
+  });
+  if (!me || me.id !== original.recipientId) {
+    return { success: false as const, error: "Only the recipient can counter this trade." };
+  }
+  if (original.status !== "PENDING") {
+    return { success: false as const, error: "This trade has already been resolved." };
+  }
+
+  const league = await prisma.fantasyLeague.findUnique({ where: { id: original.leagueId } });
+  if (!league || league.status !== "ACTIVE") {
+    return { success: false as const, error: "Trades are only open once the season has started." };
+  }
+
+  // New proposer/recipient are the original trade's roles reversed.
+  const newProposerId = original.recipientId;
+  const newRecipientId = original.proposerId;
+
+  const picks = await prisma.fantasyDraftPick.findMany({
+    where: { id: { in: [...offeredPickIds, ...requestedPickIds] } },
+  });
+  const pickById = new Map(picks.map((p) => [p.id, p]));
+
+  for (const id of offeredPickIds) {
+    const pick = pickById.get(id);
+    if (pick?.memberId !== newProposerId) {
+      return { success: false as const, error: "You can only offer your own players." };
+    }
+    if (pick.droppedAt) {
+      return { success: false as const, error: "One of those players has already been dropped." };
+    }
+  }
+  for (const id of requestedPickIds) {
+    const pick = pickById.get(id);
+    if (pick?.memberId !== newRecipientId) {
+      return { success: false as const, error: "You can only request their players." };
+    }
+    if (pick.droppedAt) {
+      return { success: false as const, error: "One of those players has already been dropped." };
+    }
+  }
+
+  class StaleTradeError extends Error {}
+
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const freshOriginal = await tx.fantasyTrade.findUniqueOrThrow({
+            where: { id: originalTradeId },
+          });
+          if (freshOriginal.status !== "PENDING") {
+            throw new StaleTradeError("This trade has already been resolved.");
+          }
+
+          await tx.fantasyTrade.update({
+            where: { id: originalTradeId },
+            data: { status: "COUNTERED", respondedAt: new Date() },
+          });
+
+          await tx.fantasyTrade.create({
+            data: {
+              leagueId: original.leagueId,
+              proposerId: newProposerId,
+              recipientId: newRecipientId,
+              counteredFromId: originalTradeId,
+              items: {
+                create: [
+                  ...offeredPickIds.map((pickId) => ({ pickId, fromMemberId: newProposerId })),
+                  ...requestedPickIds.map((pickId) => ({ pickId, fromMemberId: newRecipientId })),
+                ],
+              },
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      break;
+    } catch (err) {
+      if (err instanceof StaleTradeError) {
+        return { success: false as const, error: err.message };
+      }
+      const isConflict =
+        err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034";
+      if (isConflict && attempt < MAX_RETRIES - 1) continue;
+      if (isConflict) return { success: false as const, error: "That didn't go through — try again." };
+      throw err;
+    }
+  }
+
+  revalidatePath(`/leagues/${original.leagueId}`);
+  return { success: true as const };
+}
+
 export async function cancelTrade(tradeId: string) {
   const user = await requireUser();
 

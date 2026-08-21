@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-
 export type ActivityEntry =
   | {
       id: string;
@@ -62,11 +60,16 @@ export function ActivityView({ entries }: { entries: ActivityEntry[] }) {
                       {formatDate(entry.at)}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-col gap-1 rounded-md bg-secondary/30 p-2">
                     {entry.items.map((item, i) => (
-                      <Badge key={i} variant="outline">
-                        {item.fromTeamName} → {item.toTeamName}: {item.playerName}
-                      </Badge>
+                      <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 flex-1 truncate text-foreground">
+                          {item.playerName}
+                        </span>
+                        <span className="max-w-[55%] shrink-0 truncate text-muted-foreground">
+                          {item.fromTeamName} → {item.toTeamName}
+                        </span>
+                      </div>
                     ))}
                   </div>
                 </div>

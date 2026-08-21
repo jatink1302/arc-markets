@@ -2,42 +2,42 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.65rem] font-semibold text-primary-foreground">
+      {count}
+    </span>
+  );
+}
+
 export function SeasonView({
   matchupSlot,
   standingsSlot,
   rostersSlot,
-  tradesSlot,
-  freeAgentsSlot,
   activitySlot,
+  pendingTradesCount,
 }: {
   matchupSlot: React.ReactNode;
   standingsSlot: React.ReactNode;
   rostersSlot: React.ReactNode;
-  tradesSlot: React.ReactNode;
-  freeAgentsSlot: React.ReactNode;
   activitySlot: React.ReactNode;
+  pendingTradesCount: number;
 }) {
   return (
     <Tabs defaultValue="matchup" className="w-full max-w-2xl">
-      {/* Triggers don't truncate, so at 6 tabs a fixed-width flex-1 row would overflow/squish
-          on phone widths — scroll horizontally instead of forcing everything to fit. */}
-      <TabsList className="w-full justify-start overflow-x-auto">
-        <TabsTrigger value="matchup" className="shrink-0 grow-0">
+      <TabsList className="w-full">
+        <TabsTrigger value="matchup" className="flex-1">
           Matchup
         </TabsTrigger>
-        <TabsTrigger value="standings" className="shrink-0 grow-0">
+        <TabsTrigger value="standings" className="flex-1">
           Standings
         </TabsTrigger>
-        <TabsTrigger value="rosters" className="shrink-0 grow-0">
+        <TabsTrigger value="rosters" className="flex-1">
           Rosters
+          <CountBadge count={pendingTradesCount} />
         </TabsTrigger>
-        <TabsTrigger value="freeAgents" className="shrink-0 grow-0">
-          Free Agents
-        </TabsTrigger>
-        <TabsTrigger value="trades" className="shrink-0 grow-0">
-          Trades
-        </TabsTrigger>
-        <TabsTrigger value="activity" className="shrink-0 grow-0">
+        <TabsTrigger value="activity" className="flex-1">
           Activity
         </TabsTrigger>
       </TabsList>
@@ -49,12 +49,6 @@ export function SeasonView({
       </TabsContent>
       <TabsContent value="rosters" className="mt-4">
         {rostersSlot}
-      </TabsContent>
-      <TabsContent value="freeAgents" className="mt-4">
-        {freeAgentsSlot}
-      </TabsContent>
-      <TabsContent value="trades" className="mt-4">
-        {tradesSlot}
       </TabsContent>
       <TabsContent value="activity" className="mt-4">
         {activitySlot}

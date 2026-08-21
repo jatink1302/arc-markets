@@ -172,76 +172,74 @@ export function DraftBoard({
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-heading text-xs uppercase tracking-wide text-muted-foreground">
-            Top available
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col divide-y divide-border/60 p-0">
-          {topAvailable.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No players left to draft.</p>
-          ) : (
-            topAvailable.map((p) => (
-              <PlayerRow
-                key={p.nflverseId}
-                player={p}
-                canDraft={isMyTurn}
-                isPending={isPending}
-                onDraft={handleDraft}
-              />
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Input
-            placeholder={`Search ${availablePlayers.length.toLocaleString()} available players…`}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="sm:max-w-xs"
-          />
-          <div className="flex flex-wrap gap-1.5">
-            {positions.map((pos) => (
-              <button
-                key={pos}
-                onClick={() => setPosition(position === pos ? null : pos)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                  position === pos
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {pos}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          placeholder={`Search ${availablePlayers.length.toLocaleString()} available players…`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="sm:max-w-xs"
+        />
+        <div className="flex flex-wrap gap-1.5">
+          {positions.map((pos) => (
+            <button
+              key={pos}
+              onClick={() => setPosition(position === pos ? null : pos)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                position === pos
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {pos}
+            </button>
+          ))}
         </div>
-
-        {isBrowsing && (
-          <Card className="border-border bg-card">
-            <CardContent className="flex flex-col divide-y divide-border/60 p-0">
-              {filtered.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">No matching players.</p>
-              ) : (
-                filtered
-                  .slice(0, 50)
-                  .map((p) => (
-                    <PlayerRow
-                      key={p.nflverseId}
-                      player={p}
-                      canDraft={isMyTurn}
-                      isPending={isPending}
-                      onDraft={handleDraft}
-                    />
-                  ))
-              )}
-            </CardContent>
-          </Card>
-        )}
       </div>
+
+      {isBrowsing ? (
+        <Card className="border-border bg-card">
+          <CardContent className="flex flex-col divide-y divide-border/60 p-0">
+            {filtered.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No matching players.</p>
+            ) : (
+              filtered
+                .slice(0, 50)
+                .map((p) => (
+                  <PlayerRow
+                    key={p.nflverseId}
+                    player={p}
+                    canDraft={isMyTurn}
+                    isPending={isPending}
+                    onDraft={handleDraft}
+                  />
+                ))
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="font-heading text-xs uppercase tracking-wide text-muted-foreground">
+              Top available
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col divide-y divide-border/60 p-0">
+            {topAvailable.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No players left to draft.</p>
+            ) : (
+              topAvailable.map((p) => (
+                <PlayerRow
+                  key={p.nflverseId}
+                  player={p}
+                  canDraft={isMyTurn}
+                  isPending={isPending}
+                  onDraft={handleDraft}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {error && <p className="text-sm text-negative">{error}</p>}
 

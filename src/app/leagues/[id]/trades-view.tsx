@@ -6,18 +6,37 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { respondToTrade, cancelTrade } from "@/app/actions/fantasy-trade";
+import { ProposeTradeCard, type TradePickOption } from "./propose-trade-card";
 
 export type TradeItemData = { playerName: string; playerPosition: string | null; fromMemberName: string };
 
 export type TradeRowData = {
   id: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED" | "COUNTERED";
   proposerName: string;
   recipientName: string;
   items: TradeItemData[];
   isIncoming: boolean;
   isOutgoing: boolean;
+  isCounterOffer: boolean;
+  myPicks: TradePickOption[];
+  counterpartyPicks: TradePickOption[];
 };
+
+function TradeItemsList({ items }: { items: TradeItemData[] }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-md bg-secondary/30 p-2">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 text-xs">
+          <span className="min-w-0 flex-1 truncate text-foreground">{item.playerName}</span>
+          <span className="max-w-[40%] shrink-0 truncate text-muted-foreground">
+            {item.fromMemberName}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function TradesView({
   pending,
@@ -65,8 +84,11 @@ export function TradesView({
           ) : (
             pending.map((t) => (
               <div key={t.id} className="flex flex-col gap-2 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-foreground">
+                {t.isCounterOffer && (
+                  <span className="text-xs text-muted-foreground">↩ Countered offer</span>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {t.proposerName} ↔ {t.recipientName}
                   </span>
                   {t.isIncoming && (
@@ -95,13 +117,15 @@ export function TradesView({
                     </Button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.items.map((item, i) => (
-                    <Badge key={i} variant="outline">
-                      {item.fromMemberName}: {item.playerName}
-                    </Badge>
-                  ))}
-                </div>
+                <TradeItemsList items={t.items} />
+                {t.isIncoming && (
+                  <ProposeTradeCard
+                    mode="counter"
+                    originalTradeId={t.id}
+                    myPicks={t.myPicks}
+                    theirPicks={t.counterpartyPicks}
+                  />
+                )}
               </div>
             ))
           )}
@@ -118,21 +142,21 @@ export function TradesView({
           ) : (
             history.map((t) => (
               <div key={t.id} className="flex flex-col gap-2 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-foreground">
+                {t.isCounterOffer && (
+                  <span className="text-xs text-muted-foreground">↩ Countered offer</span>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                     {t.proposerName} ↔ {t.recipientName}
                   </span>
-                  <Badge variant={t.status === "ACCEPTED" ? "secondary" : "outline"}>
+                  <Badge
+                    variant={t.status === "ACCEPTED" ? "secondary" : "outline"}
+                    className="shrink-0"
+                  >
                     {t.status}
                   </Badge>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.items.map((item, i) => (
-                    <Badge key={i} variant="outline">
-                      {item.fromMemberName}: {item.playerName}
-                    </Badge>
-                  ))}
-                </div>
+                <TradeItemsList items={t.items} />
               </div>
             ))
           )}

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { TeamBadge } from "@/components/matchup/team-badge";
-import { cn } from "@/lib/utils";
+import { WeekSelect } from "./week-select";
 
 export type SeasonLineupPlayer = {
   playerName: string;
@@ -65,26 +64,9 @@ export function SeasonMatchupView({
   mine: SeasonMatchupSide | null;
   opponent: SeasonMatchupSide | null; // null = bye week (only meaningful when mine is set)
 }) {
-  const weeks = Array.from({ length: seasonWeeks }, (_, i) => i + 1);
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-1.5">
-        {weeks.map((w) => (
-          <Link
-            key={w}
-            href={`/leagues/${leagueId}?week=${w}`}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-xs font-mono transition-colors",
-              w === week
-                ? "border-primary bg-primary/20 text-foreground"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {w}
-          </Link>
-        ))}
-      </div>
+      <WeekSelect leagueId={leagueId} week={week} seasonWeeks={seasonWeeks} />
 
       {!hasStarted ? (
         <EmptyStateCard
@@ -103,24 +85,24 @@ export function SeasonMatchupView({
         />
       ) : (
         <>
-          <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-            <div className="flex flex-col items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-border bg-card p-4">
+            <div className="flex flex-col items-center gap-2 justify-self-start">
               <TeamBadge name={mine.teamName} />
-              <span className="max-w-24 truncate text-xs text-muted-foreground">
+              <span className="max-w-20 truncate text-xs text-muted-foreground">
                 {mine.teamName}
               </span>
             </div>
             <div className="text-center">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              <div className="text-xs whitespace-nowrap uppercase tracking-wide text-muted-foreground">
                 Week {week}
               </div>
-              <div className="font-mono text-xl font-semibold text-foreground">
+              <div className="whitespace-nowrap font-mono text-lg font-semibold text-foreground">
                 {mine.totalPoints.toFixed(1)} – {opponent.totalPoints.toFixed(1)}
               </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 justify-self-end">
               <TeamBadge name={opponent.teamName} />
-              <span className="max-w-24 truncate text-xs text-muted-foreground">
+              <span className="max-w-20 truncate text-xs text-muted-foreground">
                 {opponent.teamName}
               </span>
             </div>

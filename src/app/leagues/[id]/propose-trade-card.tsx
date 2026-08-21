@@ -4,21 +4,27 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { proposeTrade } from "@/app/actions/fantasy-trade";
+import { proposeTrade, counterTrade } from "@/app/actions/fantasy-trade";
 
 export type TradePickOption = { id: string; playerName: string; playerPosition: string | null };
 
-export function ProposeTradeCard({
-  leagueId,
-  myPicks,
-  theirMemberId,
-  theirPicks,
-}: {
-  leagueId: string;
-  myPicks: TradePickOption[];
-  theirMemberId: string;
-  theirPicks: TradePickOption[];
-}) {
+type ProposeTradeCardProps =
+  | {
+      mode: "propose";
+      leagueId: string;
+      theirMemberId: string;
+      myPicks: TradePickOption[];
+      theirPicks: TradePickOption[];
+    }
+  | {
+      mode: "counter";
+      originalTradeId: string;
+      myPicks: TradePickOption[];
+      theirPicks: TradePickOption[];
+    };
+
+export function ProposeTradeCard(props: ProposeTradeCardProps) {
+  const { myPicks, theirPicks } = props;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [offered, setOffered] = useState<Set<string>>(new Set());
@@ -36,17 +42,17 @@ export function ProposeTradeCard({
   function submit() {
     setError(null);
     startTransition(async () => {
-      const result = await proposeTrade(
-        leagueId,
-        theirMemberId,
-        Array.from(offered),
-        Array.from(requested),
-      );
+      const offeredIds = Array.from(offered);
+      const requestedIds = Array.from(requested);
+      const result =
+        props.mode === "propose"
+          ? await proposeTrade(props.leagueId, props.theirMemberId, offeredIds, requestedIds)
+          : await counterTrade(props.originalTradeId, offeredIds, requestedIds);
       if (!result.success) {
         setError(result.error);
         return;
       }
-      toast.success("Trade proposed.");
+      toast.success(props.mode === "propose" ? "Trade proposed." : "Counter-offer sent.");
       setOpen(false);
       setOffered(new Set());
       setRequested(new Set());
@@ -57,7 +63,7 @@ export function ProposeTradeCard({
   if (!open) {
     return (
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Propose trade
+        {props.mode === "propose" ? "Propose trade" : "Counter"}
       </Button>
     );
   }
@@ -117,7 +123,11 @@ export function ProposeTradeCard({
           disabled={isPending || offered.size === 0 || requested.size === 0}
           onClick={submit}
         >
-          {isPending ? "Sending…" : "Send proposal"}
+          {isPending
+            ? "Sending…"
+            : props.mode === "propose"
+              ? "Send proposal"
+              : "Send counter"}
         </Button>
         <Button size="sm" variant="ghost" disabled={isPending} onClick={() => setOpen(false)}>
           Cancel

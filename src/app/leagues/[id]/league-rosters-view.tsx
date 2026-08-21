@@ -26,10 +26,20 @@ export function LeagueRostersView({
   }
   const myPicks = (myMemberId ? picksByMember.get(myMemberId) : undefined) ?? [];
 
+  // Your own team always shows first — order was never meaningful otherwise (just
+  // incidental joinedAt order).
+  const orderedMembers =
+    myMemberId
+      ? [
+          ...members.filter((m) => m.id === myMemberId),
+          ...members.filter((m) => m.id !== myMemberId),
+        ]
+      : members;
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {members.map((member) => {
+        {orderedMembers.map((member) => {
           const roster = picksByMember.get(member.id) ?? [];
           const isMine = member.id === myMemberId;
           return (
@@ -70,13 +80,14 @@ export function LeagueRostersView({
               {!isMine && myMemberId && (
                 <CardFooter>
                   <ProposeTradeCard
+                    mode="propose"
                     leagueId={leagueId}
+                    theirMemberId={member.id}
                     myPicks={myPicks.map((p) => ({
                       id: p.id,
                       playerName: p.playerName,
                       playerPosition: p.playerPosition,
                     }))}
-                    theirMemberId={member.id}
                     theirPicks={roster.map((p) => ({
                       id: p.id,
                       playerName: p.playerName,

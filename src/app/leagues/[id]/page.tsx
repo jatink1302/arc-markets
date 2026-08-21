@@ -10,6 +10,7 @@ import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { LeagueFormingView } from "./league-forming-view";
 import { DraftBoard, type DraftablePlayer } from "./draft-board";
 import { LeagueRostersView } from "./league-rosters-view";
+import { RostersSectionView } from "./rosters-section-view";
 import { SeasonView } from "./season-view";
 import { SeasonMatchupView, type SeasonMatchupSide } from "./season-matchup-view";
 import { SeasonStandingsView } from "./season-standings-view";
@@ -93,9 +94,8 @@ export default async function LeaguePage({
     matchup: React.ReactNode;
     standings: React.ReactNode;
     rosters: React.ReactNode;
-    trades: React.ReactNode;
-    freeAgents: React.ReactNode;
     activity: React.ReactNode;
+    pendingTradesCount: number;
   } | null = null;
 
   if (league.status === "ACTIVE") {
@@ -160,7 +160,9 @@ export default async function LeaguePage({
       standingsThroughWeek,
     ).map((row) => ({ ...row, teamName: teamNameByMember.get(row.memberId) ?? "Unknown" }));
 
-    const standingsSlot = <SeasonStandingsView leagueId={league.id} rows={standings} />;
+    const standingsSlot = (
+      <SeasonStandingsView leagueId={league.id} myMemberId={me.id} rows={standings} />
+    );
 
     const rosteredNflverseIds = new Set(ctx.activePicks.map((p) => p.nflverseId));
 
@@ -208,22 +210,40 @@ export default async function LeaguePage({
       include: { items: { include: { pick: true } } },
       orderBy: { createdAt: "desc" },
     });
-    const tradeRows: TradeRowData[] = trades.map((t) => ({
-      id: t.id,
-      status: t.status,
-      proposerName: teamNameByMember.get(t.proposerId) ?? "Unknown",
-      recipientName: teamNameByMember.get(t.recipientId) ?? "Unknown",
-      items: t.items.map((item) => ({
-        playerName: item.pick.playerName,
-        playerPosition: item.pick.playerPosition,
-        fromMemberName: teamNameByMember.get(item.fromMemberId) ?? "Unknown",
-      })),
-      isIncoming: t.recipientId === me.id,
-      isOutgoing: t.proposerId === me.id,
+    const myTradeablePicks = (ctx.picksByMember.get(me.id) ?? []).map((p) => ({
+      id: p.id,
+      playerName: p.playerName,
+      playerPosition: p.playerPosition,
     }));
+
+    const tradeRows: TradeRowData[] = trades.map((t) => {
+      const counterpartyMemberId = t.proposerId === me.id ? t.recipientId : t.proposerId;
+      return {
+        id: t.id,
+        status: t.status,
+        proposerName: teamNameByMember.get(t.proposerId) ?? "Unknown",
+        recipientName: teamNameByMember.get(t.recipientId) ?? "Unknown",
+        items: t.items.map((item) => ({
+          playerName: item.pick.playerName,
+          playerPosition: item.pick.playerPosition,
+          fromMemberName: teamNameByMember.get(item.fromMemberId) ?? "Unknown",
+        })),
+        isIncoming: t.recipientId === me.id,
+        isOutgoing: t.proposerId === me.id,
+        isCounterOffer: t.counteredFromId !== null,
+        myPicks: myTradeablePicks,
+        counterpartyPicks: (ctx.picksByMember.get(counterpartyMemberId) ?? []).map((p) => ({
+          id: p.id,
+          playerName: p.playerName,
+          playerPosition: p.playerPosition,
+        })),
+      };
+    });
+    const pendingTradeRows = tradeRows.filter((t) => t.status === "PENDING");
+    const pendingTradesCount = pendingTradeRows.filter((t) => t.isIncoming).length;
     const tradesSlot = (
       <TradesView
-        pending={tradeRows.filter((t) => t.status === "PENDING")}
+        pending={pendingTradeRows}
         history={tradeRows.filter((t) => t.status !== "PENDING")}
       />
     );
@@ -276,22 +296,28 @@ export default async function LeaguePage({
     activityEntries.sort((a, b) => b.at.getTime() - a.at.getTime());
     const activitySlot = <ActivityView entries={activityEntries} />;
 
-    const rostersSlot = (
-      <LeagueRostersView
-        leagueId={league.id}
-        myMemberId={me.id}
-        members={members}
-        picks={ctx.activePicks}
+    const rostersSectionSlot = (
+      <RostersSectionView
+        rostersSlot={
+          <LeagueRostersView
+            leagueId={league.id}
+            myMemberId={me.id}
+            members={members}
+            picks={ctx.activePicks}
+          />
+        }
+        freeAgentsSlot={freeAgentsSlot}
+        tradesSlot={tradesSlot}
+        pendingTradesCount={pendingTradesCount}
       />
     );
 
     seasonSlots = {
       matchup: matchupSlot,
       standings: standingsSlot,
-      rosters: rostersSlot,
-      trades: tradesSlot,
-      freeAgents: freeAgentsSlot,
+      rosters: rostersSectionSlot,
       activity: activitySlot,
+      pendingTradesCount,
     };
   }
 
@@ -349,9 +375,8 @@ export default async function LeaguePage({
             matchupSlot={seasonSlots.matchup}
             standingsSlot={seasonSlots.standings}
             rostersSlot={seasonSlots.rosters}
-            tradesSlot={seasonSlots.trades}
-            freeAgentsSlot={seasonSlots.freeAgents}
             activitySlot={seasonSlots.activity}
+            pendingTradesCount={seasonSlots.pendingTradesCount}
           />
         </div>
       )}

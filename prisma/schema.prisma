@@ -295,19 +295,25 @@ enum FantasyTradeStatus {
   ACCEPTED
   REJECTED
   CANCELLED
+  COUNTERED
 }
 
 model FantasyTrade {
-  id          String              @id @default(cuid())
-  leagueId    String
-  league      FantasyLeague       @relation(fields: [leagueId], references: [id])
-  proposerId  String
-  proposer    FantasyLeagueMember @relation("TradeProposer", fields: [proposerId], references: [id])
-  recipientId String
-  recipient   FantasyLeagueMember @relation("TradeRecipient", fields: [recipientId], references: [id])
-  status      FantasyTradeStatus  @default(PENDING)
-  createdAt   DateTime            @default(now())
-  respondedAt DateTime?
+  id              String              @id @default(cuid())
+  leagueId        String
+  league          FantasyLeague       @relation(fields: [leagueId], references: [id])
+  proposerId      String
+  proposer        FantasyLeagueMember @relation("TradeProposer", fields: [proposerId], references: [id])
+  recipientId     String
+  recipient       FantasyLeagueMember @relation("TradeRecipient", fields: [recipientId], references: [id])
+  status          FantasyTradeStatus  @default(PENDING)
+  createdAt       DateTime            @default(now())
+  respondedAt     DateTime?
+  // The trade this one is a counter-offer to, if any — one counter per trade (countering
+  // supersedes the original rather than forking into multiple simultaneous counters).
+  counteredFromId String?             @unique
+  counteredFrom   FantasyTrade?       @relation("TradeCounter", fields: [counteredFromId], references: [id])
+  counteredBy     FantasyTrade?       @relation("TradeCounter")
 
   items FantasyTradeItem[]
 }
