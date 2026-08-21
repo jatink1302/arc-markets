@@ -297,12 +297,20 @@ export default async function LeaguePage({
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-4">
-      <Link
-        href="/leagues"
-        className="self-start text-sm text-muted-foreground hover:text-foreground"
-      >
-        ← My Leagues
-      </Link>
+      <div className="flex w-full max-w-2xl items-center justify-between">
+        <Link
+          href="/leagues"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← My Leagues
+        </Link>
+        <Link
+          href={`/leagues/${league.id}/chat`}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          💬 Chat
+        </Link>
+      </div>
 
       {league.status === "FORMING" && (
         <LeagueFormingView

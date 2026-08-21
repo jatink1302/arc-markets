@@ -213,10 +213,11 @@ model FantasyLeague {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  members  FantasyLeagueMember[]
-  picks    FantasyDraftPick[]
-  matchups FantasyMatchup[]
-  trades   FantasyTrade[]
+  members      FantasyLeagueMember[]
+  picks        FantasyDraftPick[]
+  matchups     FantasyMatchup[]
+  trades       FantasyTrade[]
+  chatMessages FantasyChatMessage[]
 }
 
 model FantasyLeagueMember {
@@ -230,10 +231,11 @@ model FantasyLeagueMember {
   joinedAt DateTime          @default(now())
 
   picks          FantasyDraftPick[]
-  matchupsAsA    FantasyMatchup[]   @relation("FantasyMatchupMemberA")
-  matchupsAsB    FantasyMatchup[]   @relation("FantasyMatchupMemberB")
-  tradesProposed FantasyTrade[]     @relation("TradeProposer")
-  tradesReceived FantasyTrade[]     @relation("TradeRecipient")
+  matchupsAsA    FantasyMatchup[]     @relation("FantasyMatchupMemberA")
+  matchupsAsB    FantasyMatchup[]     @relation("FantasyMatchupMemberB")
+  tradesProposed FantasyTrade[]       @relation("TradeProposer")
+  tradesReceived FantasyTrade[]       @relation("TradeRecipient")
+  chatMessages   FantasyChatMessage[]
 
   @@unique([leagueId, userId])
 }
@@ -318,4 +320,19 @@ model FantasyTradeItem {
   pick         FantasyDraftPick @relation(fields: [pickId], references: [id])
   fromMemberId String // denormalized: who was giving this player up, so trade history still
   // reads correctly even after ownership has since changed hands again
+}
+
+// Plain post-and-read league chat — no read receipts/unread tracking, no edit/delete, no
+// presence. Available in every league status (FORMING/DRAFTING/ACTIVE), not just ACTIVE —
+// members coordinate before the draft too, not only mid-season.
+model FantasyChatMessage {
+  id        String              @id @default(cuid())
+  leagueId  String
+  league    FantasyLeague       @relation(fields: [leagueId], references: [id])
+  memberId  String
+  member    FantasyLeagueMember @relation(fields: [memberId], references: [id])
+  body      String
+  createdAt DateTime            @default(now())
+
+  @@index([leagueId, createdAt])
 }
