@@ -47,7 +47,7 @@ export function LeagueRostersView({
               <CardHeader>
                 <CardTitle className="font-heading text-sm uppercase tracking-wide text-foreground">
                   <Link href={`/leagues/${leagueId}/team/${member.id}`} className="hover:opacity-80">
-                    {member.teamName ?? member.email}
+                    {member.teamName ?? member.email ?? "Unclaimed Team"}
                   </Link>
                 </CardTitle>
               </CardHeader>

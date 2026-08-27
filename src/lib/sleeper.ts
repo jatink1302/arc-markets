@@ -127,6 +127,18 @@ export async function getLeagueStarterSlots(leagueId: string): Promise<string[]>
   return league.roster_positions.filter((p) => p !== "BN" && p !== "IR" && p !== "TAXI");
 }
 
+// Full roster/scoring/schedule shape a Sleeper-to-native league conversion needs —
+// separate from getLeagueStarterSlots above, which only needs roster_positions.
+export type SleeperLeagueSettings = {
+  roster_positions: string[];
+  scoring_settings: Record<string, number>;
+  settings: { playoff_week_start: number };
+};
+
+export async function getSleeperLeagueSettings(leagueId: string): Promise<SleeperLeagueSettings> {
+  return sleeperFetch<SleeperLeagueSettings>(`/league/${leagueId}`);
+}
+
 export async function getLeagueUsers(
   leagueId: string,
 ): Promise<SleeperLeagueUser[]> {

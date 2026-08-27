@@ -192,26 +192,32 @@ enum FantasyMemberRole {
 }
 
 model FantasyLeague {
-  id              String              @id @default(cuid())
-  name            String
-  inviteCode      String              @unique
-  status          FantasyLeagueStatus @default(FORMING)
+  id                    String              @id @default(cuid())
+  name                  String
+  inviteCode            String              @unique
+  status                FantasyLeagueStatus @default(FORMING)
   // NFL season this league plays against — set explicitly at creation to the live current
   // season (the DB default below only exists so adding this column to existing rows didn't
   // need a backfill); the commissioner can point it at an already-complete past season instead
   // (e.g. before the live season has any real games played yet).
-  season          String              @default("2026")
-  rosterSettings  Json // slot counts — standard defaults at creation, commissioner-editable
-  scoringSettings Json // headline scoring categories — same deal
-  draftOrder      Json? // memberId[] snake order, set once when the draft starts
+  season                String              @default("2026")
+  rosterSettings        Json // slot counts — standard defaults at creation, commissioner-editable
+  scoringSettings       Json // headline scoring categories — same deal
+  draftOrder            Json? // memberId[] snake order, set once when the draft starts
   // 1-indexed overall counter: the draft's turn-order pointer while status is DRAFTING,
   // then repurposed post-ACTIVE as a general "next roster-entry number" for free-agent
   // pickNo assignment (nothing reads it for turn order once the draft is over). If a
   // future feature ever redrafts an ACTIVE league (e.g. next-season rookie draft), don't
   // reset this to 0 — it would collide with existing free-agent-add pickNo values.
-  currentPickNo   Int                 @default(0)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  currentPickNo         Int                 @default(0)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  // Set only when this league was created by converting a connected Sleeper league
+  // (see src/app/actions/fantasy-league-conversion.ts) rather than the normal
+  // create/join flow. The unique constraint doubles as the conversion's idempotency
+  // guard — a given Sleeper league can only ever be converted once.
+  sourceSleeperLeagueId String?             @unique
+  convertedAt           DateTime?
 
   members      FantasyLeagueMember[]
   picks        FantasyDraftPick[]
@@ -221,14 +227,22 @@ model FantasyLeague {
 }
 
 model FantasyLeagueMember {
-  id       String            @id @default(cuid())
-  leagueId String
-  league   FantasyLeague     @relation(fields: [leagueId], references: [id])
-  userId   String
-  user     User              @relation(fields: [userId], references: [id])
-  role     FantasyMemberRole @default(MEMBER)
-  teamName String?
-  joinedAt DateTime          @default(now())
+  id              String            @id @default(cuid())
+  leagueId        String
+  league          FantasyLeague     @relation(fields: [leagueId], references: [id])
+  // Nullable to support a Sleeper-league conversion (see fantasy-league-conversion.ts):
+  // the real manager behind an imported team may not have a Summit account yet. An
+  // unclaimed member (userId: null) carries sleeperOwnerId/sleeperRosterId instead, so
+  // that real person can later claim it by connecting the same Sleeper account. Every
+  // native-league action (trades, free agency, chat) looks members up via the caller's
+  // own always-non-null userId, so this never lets anyone act on an unclaimed team.
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id])
+  sleeperOwnerId  String?
+  sleeperRosterId Int?
+  role            FantasyMemberRole @default(MEMBER)
+  teamName        String?
+  joinedAt        DateTime          @default(now())
 
   picks          FantasyDraftPick[]
   matchupsAsA    FantasyMatchup[]     @relation("FantasyMatchupMemberA")
@@ -243,6 +257,7 @@ model FantasyLeagueMember {
 enum RosterEntrySource {
   DRAFT
   FREE_AGENT
+  IMPORTED // carried over from a real Sleeper roster at league-conversion time
 }
 
 model FantasyDraftPick {
@@ -274,18 +289,24 @@ model FantasyDraftPick {
   @@index([leagueId, nflverseId])
 }
 
-// The season schedule only — never a scored snapshot. Weekly points are always computed live
-// from real nflverse stats + the league's own scoringSettings at render time, so there's no
-// cached score to ever go stale.
+// The season schedule, plus an optional frozen historical score. For an organically-created
+// league, weekly points are always computed live from real nflverse stats + the league's own
+// scoringSettings at render time — importedPointsA/B stay null and there's no cached score to
+// ever go stale. The exception is a week imported from a real, already-played Sleeper week
+// (see fantasy-league-conversion.ts): that real final score is set once at conversion and
+// never recomputed, since Summit's own scoring engine can't necessarily reproduce a real
+// league's exact scoring rules. Current/future weeks always keep both fields null.
 model FantasyMatchup {
-  id        String               @id @default(cuid())
-  leagueId  String
-  league    FantasyLeague        @relation(fields: [leagueId], references: [id])
-  week      Int
-  memberAId String
-  memberA   FantasyLeagueMember  @relation("FantasyMatchupMemberA", fields: [memberAId], references: [id])
-  memberBId String? // null = bye week (odd member count)
-  memberB   FantasyLeagueMember? @relation("FantasyMatchupMemberB", fields: [memberBId], references: [id])
+  id              String               @id @default(cuid())
+  leagueId        String
+  league          FantasyLeague        @relation(fields: [leagueId], references: [id])
+  week            Int
+  memberAId       String
+  memberA         FantasyLeagueMember  @relation("FantasyMatchupMemberA", fields: [memberAId], references: [id])
+  memberBId       String? // null = bye week (odd member count)
+  memberB         FantasyLeagueMember? @relation("FantasyMatchupMemberB", fields: [memberBId], references: [id])
+  importedPointsA Decimal?             @db.Decimal(6, 2)
+  importedPointsB Decimal?             @db.Decimal(6, 2)
 
   @@unique([leagueId, week, memberAId])
 }

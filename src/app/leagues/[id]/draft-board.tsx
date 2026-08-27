@@ -14,9 +14,9 @@ import { totalRosterSlots, type RosterSettings } from "@/lib/fantasy-defaults";
 
 export type DraftMember = {
   id: string;
-  userId: string;
+  userId: string | null;
   teamName: string | null;
-  email: string;
+  email: string | null;
 };
 
 export type DraftPick = {
@@ -41,7 +41,7 @@ export type DraftablePlayer = {
 
 function memberLabel(member: DraftMember | undefined): string {
   if (!member) return "—";
-  return member.teamName ?? member.email;
+  return member.teamName ?? member.email ?? "Unclaimed Team";
 }
 
 function PlayerRow({

@@ -49,7 +49,7 @@ export default async function TeamSchedulePage({
   if (!targetMember) notFound();
 
   const teamNameByMember = new Map(
-    league.members.map((m) => [m.id, m.teamName ?? m.user.email]),
+    league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
   );
 
   const liveState = await getNflState();
@@ -59,6 +59,13 @@ export default async function TeamSchedulePage({
       picks: league.picks,
       rosterSettings: league.rosterSettings,
       scoringSettings: league.scoringSettings,
+      matchups: league.matchups.map((m) => ({
+        week: m.week,
+        memberAId: m.memberAId,
+        memberBId: m.memberBId,
+        importedPointsA: m.importedPointsA !== null ? Number(m.importedPointsA) : null,
+        importedPointsB: m.importedPointsB !== null ? Number(m.importedPointsB) : null,
+      })),
     },
     liveState,
   );
@@ -66,7 +73,7 @@ export default async function TeamSchedulePage({
   const record = computeSeasonStandings(
     league.members.map((m) => m.id),
     league.matchups,
-    (mId, week) => ctx.lineupFor(mId, week).totalPoints,
+    (mId, week) => ctx.weekScoreFor(mId, week),
     ctx.hasStarted ? ctx.clampedCurrentWeek : 0,
   ).find((r) => r.memberId === memberId);
 
@@ -90,7 +97,7 @@ export default async function TeamSchedulePage({
         week,
         opponentMemberId: null,
         opponentTeamName: null,
-        myPoints: played ? ctx.lineupFor(memberId, week).totalPoints : null,
+        myPoints: played ? ctx.weekScoreFor(memberId, week) : null,
         opponentPoints: null,
         result: played ? "BYE" : "UPCOMING",
       });
@@ -109,8 +116,8 @@ export default async function TeamSchedulePage({
       continue;
     }
 
-    const myPoints = ctx.lineupFor(memberId, week).totalPoints;
-    const opponentPoints = ctx.lineupFor(opponentId, week).totalPoints;
+    const myPoints = ctx.weekScoreFor(memberId, week);
+    const opponentPoints = ctx.weekScoreFor(opponentId, week);
     weeks.push({
       week,
       opponentMemberId: opponentId,
@@ -134,10 +141,10 @@ export default async function TeamSchedulePage({
 
       <div className="flex w-full max-w-2xl flex-col gap-4">
         <div className="flex items-center gap-3">
-          <TeamBadge name={targetMember.teamName ?? targetMember.user.email} />
+          <TeamBadge name={targetMember.teamName ?? targetMember.user?.email ?? "Unclaimed Team"} />
           <div>
             <h1 className="font-heading text-2xl uppercase tracking-wide text-foreground">
-              {targetMember.teamName ?? targetMember.user.email}
+              {targetMember.teamName ?? targetMember.user?.email ?? "Unclaimed Team"}
             </h1>
             {record && (
               <p className="font-mono text-xs text-muted-foreground">
