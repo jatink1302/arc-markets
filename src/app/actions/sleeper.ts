@@ -160,9 +160,20 @@ export async function importLeague(
           ? sleeperPlayerDisplayName(sleeperMeta, sleeperPlayerId)
           : sleeperPlayerId;
 
+        // A normalized name can match more than one real player (e.g. two different active
+        // NFL players are both named "Justin Jefferson"). When it does, prefer whichever
+        // candidate's team matches Sleeper's own team for this player — Sleeper's team
+        // assignment doesn't depend on gsis_id, so it's a reliable tiebreaker even for the
+        // ~80% of players missing one. Ambiguous with no team match just takes the first
+        // candidate, same as the old always-take-one behavior.
+        const nameCandidates = nflverseRosters.byNormalizedName.get(
+          normalizePlayerName(fallbackName),
+        );
         const nflverseEntry =
           (rawGsisId ? nflverseRosters.byGsisId.get(rawGsisId) : undefined) ??
-          nflverseRosters.byNormalizedName.get(normalizePlayerName(fallbackName));
+          (nameCandidates && nameCandidates.length > 1
+            ? (nameCandidates.find((c) => c.team === sleeperMeta?.team) ?? nameCandidates[0])
+            : nameCandidates?.[0]);
 
         const fullName = nflverseEntry?.fullName ?? fallbackName;
         const team = nflverseEntry?.team ?? sleeperMeta?.team ?? null;

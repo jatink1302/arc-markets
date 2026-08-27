@@ -51,7 +51,11 @@ export type NflverseRosterEntry = {
 
 export type NflverseRosterIndex = {
   byGsisId: Map<string, NflverseRosterEntry>;
-  byNormalizedName: Map<string, NflverseRosterEntry>;
+  // A normalized name is not unique — real players share full names (e.g. two different
+  // active NFL players are both named "Justin Jefferson"). Keeping every candidate lets
+  // the caller disambiguate against other known facts (e.g. Sleeper's own team for that
+  // player) instead of silently trusting whichever row happened to be inserted last.
+  byNormalizedName: Map<string, NflverseRosterEntry[]>;
 };
 
 const rostersCache = new Map<string, Promise<NflverseRosterIndex>>();
@@ -63,7 +67,7 @@ export async function getNflverseRosters(season: string): Promise<NflverseRoster
   const promise = (async () => {
     const rows = await fetchCsv(`${RELEASES_BASE}/rosters/roster_${season}.csv`);
     const byGsisId = new Map<string, NflverseRosterEntry>();
-    const byNormalizedName = new Map<string, NflverseRosterEntry>();
+    const byNormalizedName = new Map<string, NflverseRosterEntry[]>();
     for (const row of rows) {
       if (!row.gsis_id) continue;
       const entry: NflverseRosterEntry = {
@@ -75,9 +79,12 @@ export async function getNflverseRosters(season: string): Promise<NflverseRoster
         headshotUrl: row.headshot_url || null,
       };
       byGsisId.set(entry.gsisId, entry);
-      // Name collisions (rare) keep whichever row wins the Map insert — fine for a name-based
-      // fallback match, which is inherently best-effort.
-      if (row.full_name) byNormalizedName.set(normalizePlayerName(row.full_name), entry);
+      if (row.full_name) {
+        const key = normalizePlayerName(row.full_name);
+        const existing = byNormalizedName.get(key);
+        if (existing) existing.push(entry);
+        else byNormalizedName.set(key, [entry]);
+      }
     }
     return { byGsisId, byNormalizedName };
   })();
