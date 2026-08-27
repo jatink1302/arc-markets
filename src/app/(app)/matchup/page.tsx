@@ -16,10 +16,10 @@ const WAIVER_ELIGIBLE_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
 export default async function MatchupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; week?: string }>;
 }) {
   const authUser = await requireUser();
-  const { tab } = await searchParams;
+  const { tab, week: weekParam } = await searchParams;
   const defaultTab =
     tab === "team" || tab === "league" || tab === "leaders" ? tab : "matchup";
 
@@ -48,12 +48,29 @@ export default async function MatchupPage({
     prisma.player.findMany({ where: { leagueId: league.id } }),
   ]);
 
+  // Needed early (before the boxscore is built) for projectedPointsFor below. Cached
+  // in-memory per season by getNflverseWeeklyStats, so the later Leaders-tab fetch of
+  // the same season is a cache hit, not a duplicate network call.
+  const nflverseWeeklyStats = await getNflverseWeeklyStats(state.previous_season);
+
   const dbRosterBySleeperId = new Map(dbRosters.map((r) => [r.sleeperRosterId, r]));
   const dbRosterById = new Map(dbRosters.map((r) => [r.id, r]));
   const playerBySleeperId = new Map(dbPlayers.map((p) => [p.sleeperPlayerId, p]));
 
   function rosterDisplayName(rosterId: number): string {
     return dbRosterBySleeperId.get(rosterId)?.displayName ?? `Team ${rosterId}`;
+  }
+  function rosterTeamName(rosterId: number): string {
+    const r = dbRosterBySleeperId.get(rosterId);
+    return r?.teamName ?? r?.displayName ?? `Team ${rosterId}`;
+  }
+  function rosterLogoUrl(rosterId: number): string | null {
+    const r = dbRosterBySleeperId.get(rosterId);
+    if (r?.customLogoUrl) return r.customLogoUrl;
+    // avatarUrl is a raw Sleeper avatar-hash ID (from owner.avatar in the Sleeper API),
+    // not a full URL — never actually rendered anywhere before this. Real CDN convention:
+    // https://sleepercdn.com/avatars/thumbs/{hash}.
+    return r?.avatarUrl ? `https://sleepercdn.com/avatars/thumbs/${r.avatarUrl}` : null;
   }
 
   function buildRows(
@@ -64,6 +81,11 @@ export default async function MatchupPage({
     return buildRosterRows(playerIds, playerBySleeperId, pointsMap, withSlots ? starterSlots : undefined);
   }
 
+  const displayWeek = Math.min(
+    Math.max(Number(weekParam) || state.week, 1),
+    state.week,
+  );
+
   let matchups: Awaited<ReturnType<typeof getMatchups>> = [];
   try {
     matchups = await getMatchups(league.sleeperLeagueId, state.week);
@@ -71,33 +93,80 @@ export default async function MatchupPage({
     matchups = []; // Sleeper hiccup or no schedule yet — same honest empty state either way.
   }
 
+  let boxscoreMatchups = matchups;
+  if (displayWeek !== state.week) {
+    try {
+      boxscoreMatchups = await getMatchups(league.sleeperLeagueId, displayWeek);
+    } catch {
+      boxscoreMatchups = [];
+    }
+  }
+
+  // A simple, honest stand-in for real projections (this app has no such data source):
+  // each starter's average points-per-game from last season, summed. Players with no
+  // resolvable nflverseId or no stat lines are silently excluded, same as everywhere
+  // else this app deals with unresolved player data.
+  function projectedPointsFor(playerIds: string[]): number {
+    return playerIds.reduce((sum, sleeperId) => {
+      const gsisId = playerBySleeperId.get(sleeperId)?.nflverseId;
+      if (!gsisId) return sum;
+      const lines = nflverseWeeklyStats.get(gsisId);
+      if (!lines || lines.length === 0) return sum;
+      const avg = lines.reduce((s, l) => s + l.pointsPpr, 0) / lines.length;
+      return sum + avg;
+    }, 0);
+  }
+
   const myRosterDto = sleeperRosters.find((r) => r.owner_id === user.sleeperUserId);
   const myMatchup = myRosterDto
-    ? matchups.find((m) => m.roster_id === myRosterDto.roster_id)
+    ? boxscoreMatchups.find((m) => m.roster_id === myRosterDto.roster_id)
     : undefined;
   const opponentMatchup =
     myMatchup && myMatchup.matchup_id !== null
-      ? matchups.find(
+      ? boxscoreMatchups.find(
           (m) => m.matchup_id === myMatchup.matchup_id && m.roster_id !== myRosterDto!.roster_id,
         )
       : undefined;
+
+  const standingsForBoxscore = computeStandings(sleeperRosters, rosterDisplayName);
+  function recordFor(rosterId: number) {
+    const s = standingsForBoxscore.find((r) => r.sleeperRosterId === rosterId);
+    return s ? { wins: s.wins, losses: s.losses, ties: s.ties } : null;
+  }
+
+  const myProjected = myMatchup ? projectedPointsFor(myMatchup.starters ?? []) : 0;
+  const opponentProjected = opponentMatchup
+    ? projectedPointsFor(opponentMatchup.starters ?? [])
+    : 0;
+  const projectedSum = myProjected + opponentProjected;
+  const myWinProbability = projectedSum > 0 ? (myProjected / projectedSum) * 100 : 50;
 
   const mySide: MatchupSide | null =
     myRosterDto && myMatchup
       ? {
           sleeperRosterId: myRosterDto.roster_id,
-          rosterName: rosterDisplayName(myRosterDto.roster_id),
+          rosterName: rosterTeamName(myRosterDto.roster_id),
+          ownerName: rosterDisplayName(myRosterDto.roster_id),
+          logoUrl: rosterLogoUrl(myRosterDto.roster_id),
+          record: recordFor(myRosterDto.roster_id),
           rows: buildRows(myMatchup.starters ?? [], myMatchup.players_points, true),
           totalPoints: myMatchup.points ?? 0,
+          projectedPoints: myProjected,
+          winProbability: myWinProbability,
         }
       : null;
 
   const opponentSide: MatchupSide | null = opponentMatchup
     ? {
         sleeperRosterId: opponentMatchup.roster_id,
-        rosterName: rosterDisplayName(opponentMatchup.roster_id),
+        rosterName: rosterTeamName(opponentMatchup.roster_id),
+        ownerName: rosterDisplayName(opponentMatchup.roster_id),
+        logoUrl: rosterLogoUrl(opponentMatchup.roster_id),
+        record: recordFor(opponentMatchup.roster_id),
         rows: buildRows(opponentMatchup.starters ?? [], opponentMatchup.players_points, true),
         totalPoints: opponentMatchup.points ?? 0,
+        projectedPoints: opponentProjected,
+        winProbability: 100 - myWinProbability,
       }
     : null;
 
@@ -130,11 +199,9 @@ export default async function MatchupPage({
 
   // Leaders touches zero Sleeper endpoints at request time — it's driven entirely by nflverse
   // (name, team, position, photo, last-season points) plus our own DB for ownership, not a
-  // live Sleeper roster lookup.
-  const [nflverseRosters, nflverseWeeklyStats] = await Promise.all([
-    getNflverseRosters(state.season),
-    getNflverseWeeklyStats(state.previous_season),
-  ]);
+  // live Sleeper roster lookup. nflverseWeeklyStats was already fetched above for the
+  // boxscore's projected-points calc.
+  const nflverseRosters = await getNflverseRosters(state.season);
 
   // Ownership is attributed by nflverseId -> the DB roster it's linked to, so a leader row can
   // show "who has this player" instead of just excluding rostered players outright. Import-time
@@ -191,7 +258,15 @@ export default async function MatchupPage({
     .sort((a, b) => (b.lastSeasonPoints ?? 0) - (a.lastSeasonPoints ?? 0));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="relative flex flex-col gap-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[40vh]"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in srgb, var(--positive) 10%, transparent), transparent 70%)",
+        }}
+      />
       <div>
         <h1 className="font-heading text-2xl uppercase tracking-wide text-foreground">
           {league.name}
@@ -200,7 +275,9 @@ export default async function MatchupPage({
       </div>
       <MatchupTabs
         defaultTab={defaultTab}
-        matchupSlot={<MatchupView week={state.week} mine={mySide} opponent={opponentSide} />}
+        matchupSlot={
+          <MatchupView week={displayWeek} maxWeek={state.week} mine={mySide} opponent={opponentSide} />
+        }
         teamSlot={
           <TeamView
             teamName={myTeamName}

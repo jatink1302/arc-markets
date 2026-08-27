@@ -27,7 +27,9 @@ export function TopNav({
             {leagueName ?? "No league connected"}
           </span>
         </div>
-        <NavLinks />
+        <div className="hidden md:flex">
+          <NavLinks />
+        </div>
         <div className="text-right">
           <BalanceDisplay balance={balance} />
         </div>

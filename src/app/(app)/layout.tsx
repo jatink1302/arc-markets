@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBalance } from "@/lib/ledger";
 import { TopNav } from "@/components/nav/top-nav";
+import { BottomNav } from "@/components/nav/bottom-nav";
 import { AutoRefresh } from "@/components/auto-refresh";
 
 export default async function AppLayout({
@@ -27,7 +28,8 @@ export default async function AppLayout({
         balance={balance}
         email={authUser.email ?? ""}
       />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-20 md:pb-6">{children}</main>
+      <BottomNav />
     </div>
   );
 }
