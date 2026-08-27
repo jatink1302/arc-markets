@@ -31,7 +31,7 @@ export function TeamAvatar({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const letter = name.trim()[0]?.toUpperCase() ?? "?";
-  const dims = size === "lg" ? "h-[130px] w-[130px] text-5xl" : "h-11 w-11 text-lg";
+  const dims = size === "lg" ? "h-16 w-16 text-2xl sm:h-[130px] sm:w-[130px] sm:text-5xl" : "h-11 w-11 text-lg";
   const accentClasses = ACCENT[accent];
   const showImage = !!logoUrl && !errored;
 

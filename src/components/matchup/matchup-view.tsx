@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
-import { RosterPlayerRow, type RosterPlayerRowData } from "@/components/matchup/roster-player-row";
-import { cn } from "@/lib/utils";
+import type { RosterPlayerRowData } from "@/components/matchup/roster-player-row";
+import { cn, formatMoney } from "@/lib/utils";
 import type { MatchupSide } from "@/components/matchup/types";
 
 type Status = "PREGAME" | "LIVE" | "FINAL";
+
+// Slot labels get their own small, fixed-width pill between two players' rows — long
+// ones (SUPER_FLEX) need shortening or they blow out the column on narrow screens.
+const SHORT_SLOT: Record<string, string> = { SUPER_FLEX: "SFLX" };
+function shortSlot(slot: string): string {
+  return SHORT_SLOT[slot] ?? slot;
+}
 
 const STATUS_COPY: Record<Status, string> = {
   PREGAME: "Lineups open · swap freely before kickoff",
@@ -46,31 +53,59 @@ function TeamColumn({
         accent={accent}
         uploadable={isMine}
       />
-      <div className="min-w-0 max-w-[130px]">
-        <div className={cn("truncate font-display text-lg tracking-wide", accentText)}>
+      <div className="min-w-0 max-w-20 sm:max-w-[130px]">
+        <div className={cn("truncate font-display text-sm tracking-wide sm:text-lg", accentText)}>
           {side.rosterName}
         </div>
-        <div className="truncate text-xs text-muted-foreground">
+        <div className="truncate text-[10px] text-muted-foreground sm:text-xs">
           {side.ownerName}
           {side.record && ` · ${side.record.wins}-${side.record.losses}${side.record.ties ? `-${side.record.ties}` : ""}`}
         </div>
       </div>
-      <div className={cn("font-mono text-2xl font-bold", accentText)}>
+      <div className={cn("font-mono text-base font-bold sm:text-2xl", accentText)}>
         {Math.round(side.winProbability)}%
       </div>
     </Link>
   );
 }
 
-function PairedStarterRow({ mine, opponent }: { mine: RosterPlayerRowData | null; opponent: RosterPlayerRowData | null }) {
-  const position = mine?.slot ?? mine?.position ?? opponent?.slot ?? opponent?.position ?? "";
+// Compact by design — this list packs two players plus a slot pill into one row width,
+// so it can't afford the full-size avatar + two-column layout roster-player-row.tsx uses
+// elsewhere (that component is for a single, full-width row, e.g. the Team tab).
+function StarterHalf({ row, align }: { row: RosterPlayerRowData | null; align: "left" | "right" }) {
+  if (!row) return <div />;
+  const content = (
+    <div className={cn("min-w-0", align === "right" && "text-right")}>
+      <div className="truncate text-xs font-medium text-foreground sm:text-sm">{row.name}</div>
+      <div className="truncate text-[10px] text-muted-foreground sm:text-xs">
+        {row.slot && row.slot !== row.position ? `${shortSlot(row.slot)} · ` : ""}
+        {row.position} · {row.team ?? "FA"}
+        {row.points !== null && (
+          <span className="font-mono text-foreground"> · {row.points.toFixed(1)}</span>
+        )}
+      </div>
+      {row.price !== null && (
+        <div className="font-mono text-[10px] text-positive">${formatMoney(row.price)}</div>
+      )}
+    </div>
+  );
+  if (!row.playerId) return content;
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2.5">
-      <div className="min-w-0">{mine && <RosterPlayerRow row={mine} />}</div>
-      <span className="rounded-full border border-positive/40 px-2 py-0.5 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-positive">
-        {position || "—"}
+    <Link href={`/markets/${row.playerId}`} className="block hover:opacity-80">
+      {content}
+    </Link>
+  );
+}
+
+function PairedStarterRow({ mine, opponent }: { mine: RosterPlayerRowData | null; opponent: RosterPlayerRowData | null }) {
+  const slot = mine?.slot ?? mine?.position ?? opponent?.slot ?? opponent?.position ?? "";
+  return (
+    <div className="grid grid-cols-[1fr_2.5rem_1fr] items-center gap-1.5 px-3 py-2.5 sm:grid-cols-[1fr_3rem_1fr] sm:gap-3 sm:px-4">
+      <StarterHalf row={mine} align="left" />
+      <span className="shrink-0 rounded-full border border-positive/40 px-1 py-0.5 text-center font-mono text-[9px] font-semibold uppercase tracking-wide text-positive sm:px-2 sm:text-[10px]">
+        {slot ? shortSlot(slot) : "—"}
       </span>
-      <div className="min-w-0">{opponent && <RosterPlayerRow row={opponent} align="right" />}</div>
+      <StarterHalf row={opponent} align="right" />
     </div>
   );
 }
@@ -101,20 +136,20 @@ export function MatchupView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-5">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-3 sm:p-5">
         <div className="mb-4 flex items-center gap-1.5 rounded-full border border-positive/40 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-positive">
           <span className="h-1.5 w-1.5 rounded-full bg-positive" />
           {status}
         </div>
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-1 sm:gap-3">
           <TeamColumn side={mine} isMine align="left" />
 
-          <div className="relative flex min-w-0 flex-1 flex-col items-center gap-1 pt-2">
+          <div className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pt-2">
             <svg
               aria-hidden
               viewBox="0 0 100 110"
-              className="pointer-events-none absolute inset-0 top-1/2 left-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 text-foreground/10"
+              className="pointer-events-none absolute inset-0 top-1/2 left-1/2 hidden h-32 w-32 -translate-x-1/2 -translate-y-1/2 text-foreground/10 sm:block"
             >
               <path
                 d="M50 2 L94 18 V52 C94 82 74 100 50 108 C26 100 6 82 6 52 V18 Z"
@@ -123,15 +158,15 @@ export function MatchupView({
                 strokeWidth="3"
               />
             </svg>
-            <span className="relative rounded-full border border-border bg-secondary px-2.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+            <span className="relative rounded-full border border-border bg-secondary px-2 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground sm:px-2.5 sm:text-[10px]">
               VS
             </span>
-            <div className="relative font-mono text-3xl font-bold text-foreground">
+            <div className="relative whitespace-nowrap font-mono text-lg font-bold text-foreground sm:text-3xl">
               {mine.totalPoints.toFixed(1)} – {(opponent?.totalPoints ?? 0).toFixed(1)}
             </div>
-            <div className="relative font-mono text-xs text-muted-foreground">
+            <div className="relative whitespace-nowrap font-mono text-[10px] text-muted-foreground sm:text-xs">
               <span className="uppercase tracking-wide">Proj</span>{" "}
-              {mine.projectedPoints.toFixed(1)} – {(opponent?.projectedPoints ?? 0).toFixed(1)}
+              {mine.projectedPoints.toFixed(1)}–{(opponent?.projectedPoints ?? 0).toFixed(1)}
             </div>
           </div>
 
