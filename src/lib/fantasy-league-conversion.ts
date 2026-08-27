@@ -43,6 +43,7 @@ export async function loadPreviewInputs(userId: string) {
 
   const { scoring, limitations: scoringLimitations } = mapSleeperScoring(settings.scoring_settings);
   const { roster, limitations: rosterLimitations } = mapSleeperRosterPositions(settings.roster_positions);
+  const leagueType: "REDRAFT" | "DYNASTY" = settings.settings.type === 2 ? "DYNASTY" : "REDRAFT";
 
   const realRegularSeasonWeeks = settings.settings.playoff_week_start - 1;
   const weeksToImport = Math.min(realRegularSeasonWeeks, SEASON_WEEKS);
@@ -61,6 +62,7 @@ export async function loadPreviewInputs(userId: string) {
     liveState,
     scoring,
     roster,
+    leagueType,
     weeksToImport,
     limitations: [...scoringLimitations, ...rosterLimitations, ...weekLimitations],
   };
@@ -79,7 +81,7 @@ export async function executeLeagueConversion(userId: string) {
   if (inputs.alreadyConverted) {
     return { leagueId: inputs.leagueId, limitations: [] as string[] };
   }
-  const { user, league, liveState, scoring, roster, weeksToImport, limitations } = inputs;
+  const { user, league, liveState, scoring, roster, leagueType, weeksToImport, limitations } = inputs;
 
   // Force-refresh System-1 data first so the players/rosters we import are current —
   // reuses the existing, working gsis_id/name-matching upserts verbatim rather than
@@ -158,6 +160,7 @@ export async function executeLeagueConversion(userId: string) {
               inviteCode: generateInviteCode(),
               status: "ACTIVE",
               season: league.season,
+              leagueType,
               rosterSettings: roster,
               scoringSettings: scoring,
               sourceSleeperLeagueId: league.sleeperLeagueId,

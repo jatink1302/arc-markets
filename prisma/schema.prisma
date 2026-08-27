@@ -191,11 +191,20 @@ enum FantasyMemberRole {
   MEMBER
 }
 
+// Label only — Summit has no multi-season rollover/keeper logic, so DYNASTY carries no
+// rule differences today. Set at creation (create-league-form.tsx) or inferred from
+// Sleeper's own settings.type on conversion (see fantasy-league-conversion.ts).
+enum FantasyLeagueType {
+  REDRAFT
+  DYNASTY
+}
+
 model FantasyLeague {
   id                    String              @id @default(cuid())
   name                  String
   inviteCode            String              @unique
   status                FantasyLeagueStatus @default(FORMING)
+  leagueType            FantasyLeagueType   @default(REDRAFT)
   // NFL season this league plays against — set explicitly at creation to the live current
   // season (the DB default below only exists so adding this column to existing rows didn't
   // need a backfill); the commissioner can point it at an already-complete past season instead

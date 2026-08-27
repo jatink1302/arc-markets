@@ -46,7 +46,7 @@ export function OnboardingFlow() {
         setError(result.error);
         return;
       }
-      router.replace("/matchup");
+      router.replace("/");
     });
   }
 

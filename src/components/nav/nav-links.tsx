@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
+  { href: "/", label: "Home" },
   { href: "/matchup", label: "Matchup" },
   { href: "/markets", label: "Markets" },
   { href: "/feed", label: "Feed" },
@@ -17,7 +18,8 @@ export function NavLinks() {
   return (
     <nav className="flex items-center gap-1">
       {LINKS.map((link) => {
-        const active = pathname.startsWith(link.href);
+        // "/" would match pathname.startsWith() on every route — needs an exact match.
+        const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link
             key={link.href}

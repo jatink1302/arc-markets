@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,17 +15,23 @@ import {
 } from "@/components/ui/card";
 import { createLeague } from "@/app/actions/fantasy-league";
 
+const LEAGUE_TYPES = [
+  { value: "REDRAFT", label: "Regular season" },
+  { value: "DYNASTY", label: "Dynasty" },
+] as const;
+
 export function CreateLeagueForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
+  const [leagueType, setLeagueType] = useState<"REDRAFT" | "DYNASTY">("REDRAFT");
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createLeague(name);
+      const result = await createLeague(name, leagueType);
       if (!result.success) {
         setError(result.error);
         return;
@@ -56,6 +63,26 @@ export function CreateLeagueForm() {
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>League type</Label>
+            <div className="flex gap-1.5">
+              {LEAGUE_TYPES.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setLeagueType(opt.value)}
+                  className={cn(
+                    "flex-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                    leagueType === opt.value
+                      ? "border-primary bg-primary/20 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
           {error && <p className="text-sm text-negative">{error}</p>}
           <Button type="submit" disabled={isPending} className="w-full">

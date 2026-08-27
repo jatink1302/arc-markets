@@ -132,7 +132,9 @@ export async function getLeagueStarterSlots(leagueId: string): Promise<string[]>
 export type SleeperLeagueSettings = {
   roster_positions: string[];
   scoring_settings: Record<string, number>;
-  settings: { playoff_week_start: number };
+  // type: 0 = redraft/season league, 2 = dynasty (1 = keeper, which Summit has no
+  // concept of — treated as REDRAFT, see fantasy-league-conversion.ts).
+  settings: { playoff_week_start: number; type?: number };
 };
 
 export async function getSleeperLeagueSettings(leagueId: string): Promise<SleeperLeagueSettings> {

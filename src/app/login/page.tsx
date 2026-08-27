@@ -62,7 +62,7 @@ export default function LoginPage() {
       // Signed in immediately — either a login, or a signup with email confirmation
       // disabled on this Supabase project. No email involved at all.
       await ensureSeeded();
-      router.replace("/matchup");
+      router.replace("/");
       router.refresh();
       return;
     }

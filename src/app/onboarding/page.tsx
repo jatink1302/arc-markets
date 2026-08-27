@@ -8,7 +8,7 @@ export default async function OnboardingPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
       <Link
-        href="/matchup"
+        href="/"
         className="self-center text-sm text-muted-foreground hover:text-foreground"
       >
         ← Back

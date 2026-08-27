@@ -55,7 +55,7 @@ export async function updateSession(request: NextRequest) {
   // instead of an action result, which it can't parse ("unexpected response").
   if (user && request.nextUrl.pathname === "/login" && request.method === "GET") {
     const url = request.nextUrl.clone();
-    url.pathname = "/matchup";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

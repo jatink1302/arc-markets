@@ -16,7 +16,10 @@ import {
   type ScoringSettings,
 } from "@/lib/fantasy-defaults";
 
-export async function createLeague(name: string) {
+export async function createLeague(
+  name: string,
+  leagueType: "REDRAFT" | "DYNASTY" = "REDRAFT",
+) {
   const user = await requireUser();
   const trimmed = name.trim();
   if (!trimmed) return { success: false as const, error: "Enter a league name." };
@@ -31,6 +34,7 @@ export async function createLeague(name: string) {
           name: trimmed,
           inviteCode: generateInviteCode(),
           season,
+          leagueType,
           rosterSettings: DEFAULT_ROSTER_SETTINGS,
           scoringSettings: DEFAULT_SCORING_SETTINGS,
           members: { create: { userId: user.id, role: "COMMISSIONER" } },
