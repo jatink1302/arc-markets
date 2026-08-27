@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PlayerAvatar } from "@/components/player-avatar";
 
 export type RosterPlayerRowData = {
-  playerId: string | null; // Arc Markets Player.id, if this Sleeper player is in our market
+  playerId: string | null; // Summit Player.id, if this Sleeper player is in our market
   sleeperPlayerId: string;
   headshotUrl: string | null;
   name: string;

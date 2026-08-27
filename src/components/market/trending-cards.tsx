@@ -24,7 +24,7 @@ export function TrendingCards({ cards }: { cards: TrendingCardData[] }) {
         <Link
           key={card.label}
           href={`/markets/${card.playerId}`}
-          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary"
+          className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
         >
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {card.label}

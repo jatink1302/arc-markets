@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { ensureSeeded } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
 type Mode = "login" | "signup";
 
@@ -57,13 +58,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <Image
+        src="/summit-lockup.png"
+        alt="Summit"
+        width={1126}
+        height={636}
+        priority
+        className="h-auto w-[min(220px,55vw)]"
+      />
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl uppercase tracking-wide text-foreground">
-            Arc Markets
-          </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-center">
             {mode === "login" ? "Welcome back." : "Create your account."}
           </CardDescription>
         </CardHeader>

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Barlow, Oswald, JetBrains_Mono } from "next/font/google";
+import { Barlow, Oswald, JetBrains_Mono, Anton } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { MeshBackground } from "@/components/mesh-background";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -22,9 +23,15 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
+const anton = Anton({
+  variable: "--font-anton",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
 export const metadata: Metadata = {
-  title: "Arc Markets",
-  description: "Trade the value of your fantasy football players.",
+  title: "Summit",
+  description: "Reach the top of your fantasy football league.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -32,10 +39,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${barlow.variable} ${oswald.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${barlow.variable} ${oswald.variable} ${jetbrainsMono.variable} ${anton.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <MeshBackground />
           {children}
           <Toaster />
         </ThemeProvider>
