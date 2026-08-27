@@ -64,7 +64,7 @@ export default async function LeagueChatPage({
           ) : (
             messages.map((msg) => {
               const isMine = msg.memberId === me.id;
-              const senderName = msg.member.teamName ?? msg.member.user.email;
+              const senderName = msg.member.teamName ?? msg.member.user?.email ?? "Unclaimed Team";
               return (
                 <div
                   key={msg.id}

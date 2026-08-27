@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { ConvertLeagueButton } from "./convert-league-button";
+import { ClaimTeamCard } from "./claim-team-card";
 
 const STATUS_LABELS: Record<string, string> = {
   FORMING: "Forming",
@@ -26,6 +28,20 @@ export default async function LeaguesPage() {
     }),
   ]);
   const sleeperLeague = user?.activeLeague ?? null;
+
+  const [convertedLeague, unclaimedTeams] = await Promise.all([
+    sleeperLeague
+      ? prisma.fantasyLeague.findUnique({
+          where: { sourceSleeperLeagueId: sleeperLeague.sleeperLeagueId },
+        })
+      : null,
+    user?.sleeperUserId
+      ? prisma.fantasyLeagueMember.findMany({
+          where: { userId: null, sleeperOwnerId: user.sleeperUserId },
+          include: { league: { select: { id: true, name: true } } },
+        })
+      : [],
+  ]);
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-4">
@@ -57,23 +73,45 @@ export default async function LeaguesPage() {
           </div>
         </div>
 
+        {unclaimedTeams.length > 0 && (
+          <div className="mb-4 flex flex-col gap-2">
+            {unclaimedTeams.map((m) => (
+              <ClaimTeamCard
+                key={m.id}
+                memberId={m.id}
+                teamName={m.teamName ?? "Your team"}
+                leagueName={m.league.name}
+              />
+            ))}
+          </div>
+        )}
+
         {sleeperLeague && (
           <div className="mb-4 flex flex-col gap-2">
             <h2 className="font-heading text-xs uppercase tracking-wide text-muted-foreground">
               Sleeper league
             </h2>
-            <Link
-              href="/matchup"
-              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary"
-            >
-              <div className="min-w-0">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+              <Link href="/matchup" className="min-w-0 flex-1 hover:opacity-80">
                 <div className="truncate text-sm font-medium text-foreground">
                   {sleeperLeague.name}
                 </div>
                 <div className="text-xs text-muted-foreground">Season {sleeperLeague.season}</div>
+              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge>Sleeper</Badge>
+                {convertedLeague ? (
+                  <Link
+                    href={`/leagues/${convertedLeague.id}`}
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    View converted league →
+                  </Link>
+                ) : (
+                  <ConvertLeagueButton />
+                )}
               </div>
-              <Badge className="shrink-0">Sleeper</Badge>
-            </Link>
+            </div>
           </div>
         )}
 

@@ -17,6 +17,14 @@ type ScoringContextPick = {
   droppedAt: Date | null;
 };
 
+type ScoringContextMatchup = {
+  week: number;
+  memberAId: string;
+  memberBId: string | null;
+  importedPointsA: number | null;
+  importedPointsB: number | null;
+};
+
 // Shared by src/app/leagues/[id]/page.tsx (the Matchup tab) and the standalone
 // team-schedule route — both need the same "what's everyone's roster scoring this week"
 // setup. Two real call sites, unlike some one-off helpers deliberately not extracted
@@ -27,6 +35,9 @@ export async function buildSeasonScoringContext(
     picks: ScoringContextPick[];
     rosterSettings: unknown;
     scoringSettings: unknown;
+    // Only present for a league converted from Sleeper (see
+    // fantasy-league-conversion.ts) — omit entirely for an organic native league.
+    matchups?: ScoringContextMatchup[];
   },
   liveState: SleeperState,
 ) {
@@ -70,6 +81,23 @@ export async function buildSeasonScoringContext(
     );
   }
 
+  // Cached real Sleeper scores for a converted league's already-played weeks — see the
+  // FantasyMatchup schema comment. Empty for an organic native league (matchups omitted).
+  const cachedScoreByMemberWeek = new Map<string, number>();
+  for (const m of league.matchups ?? []) {
+    if (m.importedPointsA !== null) {
+      cachedScoreByMemberWeek.set(`${m.memberAId}:${m.week}`, m.importedPointsA);
+    }
+    if (m.memberBId && m.importedPointsB !== null) {
+      cachedScoreByMemberWeek.set(`${m.memberBId}:${m.week}`, m.importedPointsB);
+    }
+  }
+
+  function weekScoreFor(memberId: string, week: number): number {
+    const cached = cachedScoreByMemberWeek.get(`${memberId}:${week}`);
+    return cached ?? lineupFor(memberId, week).totalPoints;
+  }
+
   return {
     hasStarted,
     clampedCurrentWeek,
@@ -79,5 +107,6 @@ export async function buildSeasonScoringContext(
     scoringSettings,
     weekStats,
     lineupFor,
+    weekScoreFor,
   };
 }

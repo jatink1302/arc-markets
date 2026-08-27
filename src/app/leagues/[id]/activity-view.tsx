@@ -1,7 +1,7 @@
 export type ActivityEntry =
   | {
       id: string;
-      type: "DRAFT_PICK" | "FREE_AGENT_ADD";
+      type: "DRAFT_PICK" | "FREE_AGENT_ADD" | "IMPORTED";
       at: Date;
       teamName: string;
       playerName: string;
@@ -34,9 +34,10 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-const VERB_BY_TYPE: Record<"DRAFT_PICK" | "FREE_AGENT_ADD" | "DROP", string> = {
+const VERB_BY_TYPE: Record<"DRAFT_PICK" | "FREE_AGENT_ADD" | "IMPORTED" | "DROP", string> = {
   DRAFT_PICK: "drafted",
   FREE_AGENT_ADD: "added",
+  IMPORTED: "imported",
   DROP: "dropped",
 };
 

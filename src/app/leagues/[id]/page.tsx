@@ -53,7 +53,7 @@ export default async function LeaguePage({
     userId: m.userId,
     role: m.role,
     teamName: m.teamName,
-    email: m.user.email,
+    email: m.user?.email ?? null,
   }));
 
   const liveState = await getNflState();
@@ -106,6 +106,13 @@ export default async function LeaguePage({
           picks: league.picks,
           rosterSettings: league.rosterSettings,
           scoringSettings: league.scoringSettings,
+          matchups: league.matchups.map((m) => ({
+            week: m.week,
+            memberAId: m.memberAId,
+            memberBId: m.memberBId,
+            importedPointsA: m.importedPointsA !== null ? Number(m.importedPointsA) : null,
+            importedPointsB: m.importedPointsB !== null ? Number(m.importedPointsB) : null,
+          })),
         },
         liveState,
       ),
@@ -117,7 +124,7 @@ export default async function LeaguePage({
       : ctx.clampedCurrentWeek;
 
     const teamNameByMember = new Map(
-      league.members.map((m) => [m.id, m.teamName ?? m.user.email]),
+      league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
     );
 
     function lineupFor(memberId: string, week: number): SeasonMatchupSide {
@@ -156,7 +163,7 @@ export default async function LeaguePage({
     const standings = computeSeasonStandings(
       league.members.map((m) => m.id),
       league.matchups,
-      (memberId, week) => lineupFor(memberId, week).totalPoints,
+      (memberId, week) => ctx.weekScoreFor(memberId, week),
       standingsThroughWeek,
     ).map((row) => ({ ...row, teamName: teamNameByMember.get(row.memberId) ?? "Unknown" }));
 
@@ -256,7 +263,8 @@ export default async function LeaguePage({
     for (const p of league.picks) {
       activityEntries.push({
         id: `${p.id}-added`,
-        type: p.source === "DRAFT" ? "DRAFT_PICK" : "FREE_AGENT_ADD",
+        type:
+          p.source === "DRAFT" ? "DRAFT_PICK" : p.source === "IMPORTED" ? "IMPORTED" : "FREE_AGENT_ADD",
         at: p.pickedAt,
         teamName: teamNameByMember.get(p.memberId) ?? "Unknown",
         playerName: p.playerName,
