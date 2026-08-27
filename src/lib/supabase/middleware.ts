@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback"];
+// /reset-password must stay public: the recovery link's tokens arrive as a URL hash
+// fragment (or, for PKCE, a `code` the client SDK exchanges itself) — either way, no
+// session cookie exists yet when this first request hits the server, so gating this
+// route on `user` would bounce a real visitor straight back to /login before the
+// page's client-side JS ever gets a chance to establish the session from the link.
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/reset-password"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

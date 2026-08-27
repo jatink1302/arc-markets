@@ -11,7 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "reset";
+
+const DESCRIPTIONS: Record<Mode, string> = {
+  login: "Welcome back.",
+  signup: "Create your account.",
+  reset: "Reset your password.",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,6 +33,20 @@ export default function LoginPage() {
     setError(null);
 
     const supabase = createClient();
+
+    if (mode === "reset") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        setError(error.message);
+        setStatus("idle");
+        return;
+      }
+      setStatus("sent");
+      return;
+    }
+
     const { data, error } =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -69,26 +89,43 @@ export default function LoginPage() {
       />
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader>
-          <CardDescription className="text-center">
-            {mode === "login" ? "Welcome back." : "Create your account."}
-          </CardDescription>
+          <CardDescription className="text-center">{DESCRIPTIONS[mode]}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Tabs value={mode} onValueChange={handleModeChange}>
-            <TabsList className="w-full">
-              <TabsTrigger value="login" className="flex-1">
-                Log in
-              </TabsTrigger>
-              <TabsTrigger value="signup" className="flex-1">
-                Sign up
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {mode === "reset" ? (
+            <button
+              type="button"
+              onClick={() => handleModeChange("login")}
+              className="self-start text-sm text-muted-foreground hover:text-foreground"
+            >
+              ← Back to log in
+            </button>
+          ) : (
+            <Tabs value={mode} onValueChange={handleModeChange}>
+              <TabsList className="w-full">
+                <TabsTrigger value="login" className="flex-1">
+                  Log in
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="flex-1">
+                  Sign up
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
           {status === "sent" ? (
             <p className="text-sm text-muted-foreground">
-              Check <span className="text-foreground">{email}</span> for a confirmation link to
-              finish creating your account.
+              {mode === "reset" ? (
+                <>
+                  Check <span className="text-foreground">{email}</span> for a link to reset your
+                  password.
+                </>
+              ) : (
+                <>
+                  Check <span className="text-foreground">{email}</span> for a confirmation link
+                  to finish creating your account.
+                </>
+              )}
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -104,25 +141,40 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  minLength={mode === "signup" ? 6 : undefined}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+              {mode !== "reset" && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    {mode === "login" && (
+                      <button
+                        type="button"
+                        onClick={() => handleModeChange("reset")}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    required
+                    minLength={mode === "signup" ? 6 : undefined}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              )}
               {error && <p className="text-sm text-negative">{error}</p>}
               <Button type="submit" disabled={status === "sending"} className="w-full">
                 {status === "sending"
                   ? "Please wait…"
                   : mode === "login"
                     ? "Log in"
-                    : "Create account"}
+                    : mode === "signup"
+                      ? "Create account"
+                      : "Send reset link"}
               </Button>
             </form>
           )}
