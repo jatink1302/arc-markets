@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PlayerAvatar } from "@/components/player-avatar";
+import { formatMoney } from "@/lib/utils";
 
 export type RosterPlayerRowData = {
   playerId: string | null; // Summit Player.id, if this Sleeper player is in our market
@@ -31,7 +32,7 @@ export function RosterPlayerRow({ row }: { row: RosterPlayerRowData }) {
           <div className="font-mono text-sm text-foreground">{row.points.toFixed(1)}</div>
         )}
         {row.price !== null && (
-          <div className="font-mono text-xs text-positive">${row.price.toFixed(2)}</div>
+          <div className="font-mono text-xs text-positive">${formatMoney(row.price)}</div>
         )}
       </div>
     </div>

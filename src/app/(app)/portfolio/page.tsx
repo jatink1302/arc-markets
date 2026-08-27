@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBalance, getPositions } from "@/lib/ledger";
+import { formatMoney } from "@/lib/utils";
 import { NoLeagueCard } from "@/components/no-league-card";
 import { PositionRow } from "@/components/portfolio/position-row";
 
@@ -52,12 +53,12 @@ export default async function PortfolioPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Net worth" value={`$${netWorth.toFixed(2)}`} />
-        <Stat label="Cash balance" value={`$${balance.toFixed(2)}`} />
-        <Stat label="Positions value" value={`$${totalMarketValue.toFixed(2)}`} />
+        <Stat label="Net worth" value={`$${formatMoney(netWorth)}`} />
+        <Stat label="Cash balance" value={`$${formatMoney(balance)}`} />
+        <Stat label="Positions value" value={`$${formatMoney(totalMarketValue)}`} />
         <Stat
           label="Unrealized P/L"
-          value={`${totalUnrealizedPl >= 0 ? "+" : ""}$${totalUnrealizedPl.toFixed(2)}`}
+          value={`${totalUnrealizedPl >= 0 ? "+" : ""}$${formatMoney(totalUnrealizedPl)}`}
           tone={totalUnrealizedPl >= 0 ? "positive" : "negative"}
         />
       </div>

@@ -76,6 +76,8 @@ export async function executeTrade(
           const supplyAfter =
             side === "BUY" ? player.supply + quantity : player.supply - quantity;
 
+          let existingPosition: Awaited<ReturnType<typeof tx.position.findUnique>> = null;
+
           if (side === "BUY") {
             const balance = await tx.ledgerEntry.aggregate({
               where: { userId, type: "CASH" },
@@ -85,10 +87,10 @@ export async function executeTrade(
               throw new TradeError("Insufficient balance for this trade.");
             }
           } else {
-            const position = await tx.position.findUnique({
+            existingPosition = await tx.position.findUnique({
               where: { userId_playerId: { userId, playerId } },
             });
-            if (!position || Number(position.quantity) < quantity) {
+            if (!existingPosition || Number(existingPosition.quantity) < quantity) {
               throw new TradeError("You don't hold enough contracts to sell that many.");
             }
           }
@@ -132,7 +134,18 @@ export async function executeTrade(
             data: { supply: supplyAfter, currentPrice: quote.priceAfter },
           });
 
-          const costBasisDelta = side === "BUY" ? quote.amount : -quote.amount;
+          // On a sell, cost basis must come down by the proportional original cost of the
+          // shares being closed (weighted-average-cost method) — not by the sale proceeds.
+          // Using proceeds here would let a profitable sell erase more cost basis than the
+          // shares actually cost, and a loss-making sell erase less, silently corrupting
+          // cost basis (and every downstream unrealized-P/L figure) after repeated trades.
+          const costBasisDelta =
+            side === "BUY"
+              ? quote.amount
+              : -(
+                  (Number(existingPosition!.costBasis) / Number(existingPosition!.quantity)) *
+                  quantity
+                );
           await tx.position.upsert({
             where: { userId_playerId: { userId, playerId } },
             create: {

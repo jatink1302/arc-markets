@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { formatMoney } from "@/lib/utils";
 
 export type PositionRowData = {
   id: string;
@@ -28,15 +29,15 @@ export function PositionRow({ row }: { row: PositionRowData }) {
         <div className="min-w-0">
           <div className="truncate font-medium text-foreground">{row.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {row.quantity.toFixed(2)} contracts · ${row.currentPrice.toFixed(2)} avg
+            {row.quantity.toFixed(2)} contracts · ${formatMoney(row.currentPrice)} avg
           </div>
         </div>
       </div>
       <div className="shrink-0 text-right font-mono text-sm">
-        <div className="text-foreground">${row.marketValue.toFixed(2)}</div>
+        <div className="text-foreground">${formatMoney(row.marketValue)}</div>
         <div className={positive ? "text-positive" : "text-negative"}>
           {positive ? "+" : ""}
-          ${row.unrealizedPl.toFixed(2)}
+          ${formatMoney(row.unrealizedPl)}
         </div>
       </div>
     </Link>

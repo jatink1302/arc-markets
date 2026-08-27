@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type KeyboardEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ export function ChatComposer({ leagueId }: { leagueId: string }) {
   const [value, setValue] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function submit() {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     const body = value;
     if (!body.trim() || isPending) return;
     startTransition(async () => {
@@ -26,25 +27,17 @@ export function ChatComposer({ leagueId }: { leagueId: string }) {
     });
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-    }
-  }
-
   return (
-    <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-2">
       <Input
         placeholder="Message the league…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
         disabled={isPending}
       />
-      <Button onClick={submit} disabled={isPending || !value.trim()} className="shrink-0">
-        Send
+      <Button type="submit" disabled={isPending || !value.trim()} className="shrink-0">
+        {isPending ? "Sending…" : "Send"}
       </Button>
-    </div>
+    </form>
   );
 }

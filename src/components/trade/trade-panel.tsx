@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { quoteBuy, quoteSell, type CurveParams } from "@/lib/amm";
 import { placeTrade } from "@/app/actions/trade";
+import { formatMoney } from "@/lib/utils";
 
 export function TradePanel({
   playerId,
@@ -49,7 +50,7 @@ export function TradePanel({
         return;
       }
       toast.success(
-        `${result.trade.side === "BUY" ? "Bought" : "Sold"} ${result.trade.quantity.toFixed(2)} @ $${result.trade.price.toFixed(2)}`,
+        `${result.trade.side === "BUY" ? "Bought" : "Sold"} ${result.trade.quantity.toFixed(2)} @ $${formatMoney(result.trade.price)}`,
       );
       setQuantity("1");
     });
@@ -83,7 +84,7 @@ export function TradePanel({
         <div className="flex justify-between text-muted-foreground">
           <span>{side === "BUY" ? "Est. cost" : "Est. proceeds"}</span>
           <span className="text-foreground">
-            {quote ? `$${quote.amount.toFixed(2)}` : "—"}
+            {quote ? `$${formatMoney(quote.amount)}` : "—"}
           </span>
         </div>
         <div className="flex justify-between text-muted-foreground">
@@ -115,7 +116,7 @@ export function TradePanel({
 
       <div className="flex justify-between font-mono text-xs text-muted-foreground">
         <span>Balance</span>
-        <span>${balance.toFixed(2)}</span>
+        <span>${formatMoney(balance)}</span>
       </div>
     </div>
   );

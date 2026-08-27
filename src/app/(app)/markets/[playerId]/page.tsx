@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBalance } from "@/lib/ledger";
+import { formatMoney } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/player-avatar";
 import { PriceHistory } from "@/components/market/price-history";
@@ -77,7 +78,7 @@ export default async function PlayerDetailPage({
               {player.fullName}
             </h1>
             <div className="mt-1 font-mono text-2xl font-semibold text-foreground">
-              ${currentPrice.toFixed(2)}
+              ${formatMoney(currentPrice)}
             </div>
           </div>
         </div>
@@ -123,13 +124,13 @@ export default async function PlayerDetailPage({
               </div>
               <div>
                 <div className="text-muted-foreground">Cost basis</div>
-                <div className="text-foreground">${costBasis.toFixed(2)}</div>
+                <div className="text-foreground">${formatMoney(costBasis)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Unrealized P/L</div>
                 <div className={unrealizedPl >= 0 ? "text-positive" : "text-negative"}>
                   {unrealizedPl >= 0 ? "+" : ""}
-                  ${unrealizedPl.toFixed(2)}
+                  ${formatMoney(unrealizedPl)}
                 </div>
               </div>
             </div>

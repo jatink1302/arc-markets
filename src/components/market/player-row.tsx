@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { PlayerAvatar } from "@/components/player-avatar";
 import { MiniSparkline } from "@/components/mini-sparkline";
-import { cn } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 
 export type MarketPlayer = {
   id: string;
@@ -42,7 +42,7 @@ export function PlayerRow({ player }: { player: MarketPlayer }) {
         <MiniSparkline prices={player.sparkline} />
         <div className="text-right">
           <div className="font-mono text-sm font-semibold text-foreground">
-            ${player.currentPrice.toFixed(2)}
+            ${formatMoney(player.currentPrice)}
           </div>
           <div className={cn("font-mono text-xs", positive ? "text-positive" : "text-negative")}>
             {player.sparkline.length < 2

@@ -1,3 +1,5 @@
+import { formatMoney } from "@/lib/utils";
+
 type TradePoint = {
   id: string;
   price: number;
@@ -19,8 +21,8 @@ export function PriceHistory({ trades }: { trades: TradePoint[] }) {
       {chronological.length > 1 && (
         <>
           <div className="mt-2 flex justify-between font-mono text-[11px] text-muted-foreground">
-            <span>${Math.min(...chronological.map((t) => t.price)).toFixed(2)} low</span>
-            <span>${Math.max(...chronological.map((t) => t.price)).toFixed(2)} high</span>
+            <span>${formatMoney(Math.min(...chronological.map((t) => t.price)))} low</span>
+            <span>${formatMoney(Math.max(...chronological.map((t) => t.price)))} high</span>
           </div>
           <Sparkline prices={chronological.map((t) => t.price)} />
         </>
@@ -43,7 +45,7 @@ export function PriceHistory({ trades }: { trades: TradePoint[] }) {
               <span className="font-mono text-xs text-muted-foreground">
                 {t.quantity.toFixed(2)} @
               </span>
-              <span className="font-mono text-sm text-foreground">${t.price.toFixed(2)}</span>
+              <span className="font-mono text-sm text-foreground">${formatMoney(t.price)}</span>
               <span className="font-mono text-xs text-muted-foreground">
                 {new Date(t.createdAt).toLocaleTimeString([], {
                   hour: "2-digit",
