@@ -255,6 +255,26 @@ export default async function LeaguePage({
       />
     );
 
+    // A trade updates FantasyDraftPick.memberId in place to the new owner (see
+    // respondToTrade), so a pick's current memberId reflects who owns it now, not who
+    // added it. Rebuild "who added it" from trade history: the earliest ACCEPTED trade
+    // that moved a given pick names its pre-trade owner as that item's fromMemberId; a
+    // pick with no such trade has never changed hands, so its current owner is correct.
+    const earliestTradeByPickId = new Map<string, { at: Date; fromMemberId: string }>();
+    for (const t of trades) {
+      if (t.status !== "ACCEPTED") continue;
+      const at = t.respondedAt ?? t.createdAt;
+      for (const item of t.items) {
+        const existing = earliestTradeByPickId.get(item.pickId);
+        if (!existing || at < existing.at) {
+          earliestTradeByPickId.set(item.pickId, { at, fromMemberId: item.fromMemberId });
+        }
+      }
+    }
+    function addedByMemberId(pick: { id: string; memberId: string }): string {
+      return earliestTradeByPickId.get(pick.id)?.fromMemberId ?? pick.memberId;
+    }
+
     // Built from the raw, unfiltered league.picks (not ctx.activePicks) — a dropped
     // player's original "added" event must stay in history even after the row's
     // droppedAt is set. Only ACCEPTED trades count as a transaction; pending/rejected/
@@ -266,7 +286,7 @@ export default async function LeaguePage({
         type:
           p.source === "DRAFT" ? "DRAFT_PICK" : p.source === "IMPORTED" ? "IMPORTED" : "FREE_AGENT_ADD",
         at: p.pickedAt,
-        teamName: teamNameByMember.get(p.memberId) ?? "Unknown",
+        teamName: teamNameByMember.get(addedByMemberId(p)) ?? "Unknown",
         playerName: p.playerName,
         playerPosition: p.playerPosition,
         playerTeam: p.playerTeam,
