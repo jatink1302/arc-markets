@@ -14,11 +14,18 @@ const STATUS_LABELS: Record<string, string> = {
 export default async function LeaguesPage() {
   const authUser = await requireUser();
 
-  const memberships = await prisma.fantasyLeagueMember.findMany({
-    where: { userId: authUser.id },
-    include: { league: true },
-    orderBy: { joinedAt: "desc" },
-  });
+  const [memberships, user] = await Promise.all([
+    prisma.fantasyLeagueMember.findMany({
+      where: { userId: authUser.id },
+      include: { league: true },
+      orderBy: { joinedAt: "desc" },
+    }),
+    prisma.user.findUnique({
+      where: { id: authUser.id },
+      include: { activeLeague: true },
+    }),
+  ]);
+  const sleeperLeague = user?.activeLeague ?? null;
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-4">
@@ -50,12 +57,32 @@ export default async function LeaguesPage() {
           </div>
         </div>
 
-        {memberships.length === 0 ? (
+        {sleeperLeague && (
+          <div className="mb-4 flex flex-col gap-2">
+            <h2 className="font-heading text-xs uppercase tracking-wide text-muted-foreground">
+              Sleeper league
+            </h2>
+            <Link
+              href="/matchup"
+              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-foreground">
+                  {sleeperLeague.name}
+                </div>
+                <div className="text-xs text-muted-foreground">Season {sleeperLeague.season}</div>
+              </div>
+              <Badge className="shrink-0">Sleeper</Badge>
+            </Link>
+          </div>
+        )}
+
+        {memberships.length === 0 && !sleeperLeague ? (
           <EmptyStateCard
             title="No leagues yet"
             description="Start a new league or join one with an invite code."
           />
-        ) : (
+        ) : memberships.length > 0 ? (
           <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-card">
             {memberships.map((m) => (
               <Link
@@ -77,7 +104,7 @@ export default async function LeaguesPage() {
               </Link>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </main>
   );
