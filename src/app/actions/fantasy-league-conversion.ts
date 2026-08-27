@@ -36,6 +36,7 @@ export async function convertSleeperLeagueToNative() {
   try {
     const { leagueId, limitations } = await executeLeagueConversion(authUser.id);
     revalidatePath("/leagues");
+    revalidatePath("/");
     return { success: true as const, leagueId, limitations };
   } catch (err) {
     if (err instanceof ConversionError) return { success: false as const, error: err.message };
@@ -49,6 +50,7 @@ export async function claimFantasyTeam(memberId: string) {
   try {
     const { leagueId } = await executeTeamClaim(authUser.id, memberId);
     revalidatePath("/leagues");
+    revalidatePath("/");
     revalidatePath(`/leagues/${leagueId}`);
     return { success: true as const, leagueId };
   } catch (err) {

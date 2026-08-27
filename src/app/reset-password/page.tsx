@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    router.replace("/matchup");
+    router.replace("/");
     router.refresh();
   }
 
