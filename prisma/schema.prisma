@@ -53,7 +53,11 @@ model SleeperRoster {
   sleeperOwnerId  String?
   displayName     String
   teamName        String?
-  avatarUrl       String?
+  avatarUrl       String? // Sleeper-CDN sourced
+  // User-uploaded override, shown ahead of avatarUrl when set (see team-logo.ts). Only
+  // the roster's real owner (sleeperOwnerId matching their connected Sleeper account)
+  // can set this.
+  customLogoUrl   String?
 
   players Player[]
 
