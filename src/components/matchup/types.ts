@@ -17,6 +17,7 @@ export type MatchupSide = {
 export type StandingsRow = {
   sleeperRosterId: number;
   name: string;
+  logoUrl: string | null;
   wins: number;
   losses: number;
   ties: number;

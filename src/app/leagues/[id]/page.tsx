@@ -173,7 +173,11 @@ export default async function LeaguePage({
       league.matchups,
       (memberId, week) => ctx.weekScoreFor(memberId, week),
       standingsThroughWeek,
-    ).map((row) => ({ ...row, teamName: teamNameByMember.get(row.memberId) ?? "Unknown" }));
+    ).map((row) => ({
+      ...row,
+      teamName: teamNameByMember.get(row.memberId) ?? "Unknown",
+      logoUrl: logoUrlByMember.get(row.memberId) ?? null,
+    }));
 
     const standingsSlot = (
       <SeasonStandingsView leagueId={league.id} myMemberId={me.id} rows={standings} />

@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { TeamBadge } from "@/components/matchup/team-badge";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 
 export type SeasonStandingsRowData = {
   memberId: string;
   teamName: string;
+  logoUrl: string | null;
   wins: number;
   losses: number;
   ties: number;
@@ -41,8 +42,14 @@ export function SeasonStandingsView({
               className="flex min-w-0 flex-1 items-center gap-2 hover:opacity-80"
             >
               <span className="w-4 shrink-0 font-mono text-xs text-muted-foreground">{i + 1}</span>
-              <TeamBadge name={row.teamName} size="sm" />
-              <span className="min-w-0 truncate text-sm font-medium text-foreground">
+              <TeamAvatar
+                sleeperRosterId={null}
+                name={row.teamName}
+                logoUrl={row.logoUrl}
+                accent="positive"
+                size="sm"
+              />
+              <span className="min-w-0 truncate font-display text-sm tracking-wide text-foreground">
                 {row.teamName}
               </span>
               {row.memberId === myMemberId && (

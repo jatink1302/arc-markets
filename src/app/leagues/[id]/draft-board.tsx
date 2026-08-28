@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { PlayerAvatar } from "@/components/player-avatar";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,9 +169,18 @@ export function DraftBoard({
               You&apos;re on the clock
             </p>
           ) : (
-            <p className="font-heading text-xl uppercase tracking-wide text-foreground">
-              On the clock: {memberLabel(membersById.get(onTheClockMemberId ?? ""))}
-            </p>
+            <div className="flex items-center gap-2">
+              <TeamAvatar
+                sleeperRosterId={null}
+                name={memberLabel(membersById.get(onTheClockMemberId ?? ""))}
+                logoUrl={membersById.get(onTheClockMemberId ?? "")?.logoUrl ?? null}
+                accent="positive"
+                size="sm"
+              />
+              <p className="font-heading text-xl uppercase tracking-wide text-foreground">
+                On the clock: {memberLabel(membersById.get(onTheClockMemberId ?? ""))}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -256,24 +266,36 @@ export function DraftBoard({
           {recentPicks.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">No picks yet.</p>
           ) : (
-            recentPicks.map((pick) => (
-              <div key={pick.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-foreground">
-                    {pick.playerName}
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                      {pick.playerTeam ?? "FA"} · {pick.playerPosition}
-                    </span>
+            recentPicks.map((pick) => {
+              const member = membersById.get(pick.memberId);
+              return (
+                <div key={pick.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <TeamAvatar
+                      sleeperRosterId={null}
+                      name={memberLabel(member)}
+                      logoUrl={member?.logoUrl ?? null}
+                      accent="positive"
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {pick.playerName}
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          {pick.playerTeam ?? "FA"} · {pick.playerPosition}
+                        </span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {memberLabel(member)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {memberLabel(membersById.get(pick.memberId))}
-                  </div>
+                  <Badge variant="outline" className="shrink-0 font-mono">
+                    {pick.round}.{String(((pick.pickNo - 1) % draftOrder.length) + 1).padStart(2, "0")}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="shrink-0 font-mono">
-                  {pick.round}.{String(((pick.pickNo - 1) % draftOrder.length) + 1).padStart(2, "0")}
-                </Badge>
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>

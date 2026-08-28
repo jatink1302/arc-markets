@@ -6,7 +6,8 @@ import { getNflState } from "@/lib/sleeper";
 import { computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
-import { TeamBadge } from "@/components/matchup/team-badge";
+import { resolveNativeMemberLogoUrls } from "@/lib/roster";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 
 type TeamScheduleWeekRow = {
   week: number;
@@ -50,6 +51,10 @@ export default async function TeamSchedulePage({
 
   const teamNameByMember = new Map(
     league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
+  );
+  const logoUrlByMember = await resolveNativeMemberLogoUrls(
+    league.members.map((m) => ({ id: m.id, sleeperRosterId: m.sleeperRosterId })),
+    league.sourceSleeperLeagueId,
   );
 
   const liveState = await getNflState();
@@ -141,7 +146,13 @@ export default async function TeamSchedulePage({
 
       <div className="flex w-full max-w-2xl flex-col gap-4">
         <div className="flex items-center gap-3">
-          <TeamBadge name={targetMember.teamName ?? targetMember.user?.email ?? "Unclaimed Team"} />
+          <TeamAvatar
+            sleeperRosterId={null}
+            name={targetMember.teamName ?? targetMember.user?.email ?? "Unclaimed Team"}
+            logoUrl={logoUrlByMember.get(targetMember.id) ?? null}
+            accent="positive"
+            size="sm"
+          />
           <div>
             <h1 className="font-heading text-2xl uppercase tracking-wide text-foreground">
               {targetMember.teamName ?? targetMember.user?.email ?? "Unclaimed Team"}
