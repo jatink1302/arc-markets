@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function WeekSelect({
-  leagueId,
+  basePath,
   week,
   seasonWeeks,
 }: {
-  leagueId: string;
+  basePath: string;
   week: number;
   seasonWeeks: number;
 }) {
@@ -18,7 +18,7 @@ export function WeekSelect({
   return (
     <Select
       value={String(week)}
-      onValueChange={(value) => router.push(`/leagues/${leagueId}?week=${value}`)}
+      onValueChange={(value) => router.push(`${basePath}?week=${value}`)}
     >
       <SelectTrigger className="w-full">
         <SelectValue>Week {week}</SelectValue>

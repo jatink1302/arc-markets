@@ -25,30 +25,30 @@ export function SeasonView({
   pendingTradesCount: number;
 }) {
   return (
-    <Tabs defaultValue="matchup" className="w-full max-w-2xl">
+    <Tabs defaultValue="rosters" className="w-full max-w-2xl">
       <TabsList className="w-full">
+        <TabsTrigger value="rosters" className="flex-1">
+          Rosters
+          <CountBadge count={pendingTradesCount} />
+        </TabsTrigger>
         <TabsTrigger value="matchup" className="flex-1">
           Matchup
         </TabsTrigger>
         <TabsTrigger value="standings" className="flex-1">
           Standings
         </TabsTrigger>
-        <TabsTrigger value="rosters" className="flex-1">
-          Rosters
-          <CountBadge count={pendingTradesCount} />
-        </TabsTrigger>
         <TabsTrigger value="activity" className="flex-1">
           Activity
         </TabsTrigger>
       </TabsList>
+      <TabsContent value="rosters" className="mt-4">
+        {rostersSlot}
+      </TabsContent>
       <TabsContent value="matchup" className="mt-4">
         {matchupSlot}
       </TabsContent>
       <TabsContent value="standings" className="mt-4">
         {standingsSlot}
-      </TabsContent>
-      <TabsContent value="rosters" className="mt-4">
-        {rostersSlot}
       </TabsContent>
       <TabsContent value="activity" className="mt-4">
         {activitySlot}

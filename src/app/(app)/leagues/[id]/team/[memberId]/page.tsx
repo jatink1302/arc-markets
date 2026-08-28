@@ -3,11 +3,22 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState } from "@/lib/sleeper";
+import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
 import { computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
+import { buildStarterRows } from "@/lib/native-starters";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
+import { WeekSelect } from "../../week-select";
+import { StartersView } from "../../starters-view";
+import { BenchView } from "../../bench-view";
+
+// Isolated from the page component body on purpose — react-hooks/purity flags a direct
+// Date.now() call inside a component's render, even a Server Component's.
+function nowMs(): number {
+  return Date.now();
+}
 
 type TeamScheduleWeekRow = {
   week: number;
@@ -20,10 +31,13 @@ type TeamScheduleWeekRow = {
 
 export default async function TeamSchedulePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; memberId: string }>;
+  searchParams: Promise<{ week?: string }>;
 }) {
   const { id, memberId } = await params;
+  const { week: weekParam } = await searchParams;
   const authUser = await requireUser();
 
   const league = await prisma.fantasyLeague.findUnique({
@@ -35,6 +49,7 @@ export default async function TeamSchedulePage({
       },
       picks: { orderBy: { pickNo: "asc" } },
       matchups: { orderBy: { week: "asc" } },
+      weeklyStarters: true,
     },
   });
   if (!league) notFound();
@@ -48,6 +63,7 @@ export default async function TeamSchedulePage({
 
   const targetMember = league.members.find((m) => m.id === memberId);
   if (!targetMember) notFound();
+  const isOwner = targetMember.userId === authUser.id;
 
   const teamNameByMember = new Map(
     league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
@@ -71,9 +87,18 @@ export default async function TeamSchedulePage({
         importedPointsA: m.importedPointsA !== null ? Number(m.importedPointsA) : null,
         importedPointsB: m.importedPointsB !== null ? Number(m.importedPointsB) : null,
       })),
+      weeklyStarters: league.weeklyStarters.map((w) => ({
+        memberId: w.memberId,
+        week: w.week,
+        pickId: w.pickId,
+      })),
     },
     liveState,
   );
+
+  const selectedWeek = weekParam
+    ? Math.min(Math.max(Number(weekParam) || 1, 1), SEASON_WEEKS)
+    : ctx.clampedCurrentWeek;
 
   const record = computeSeasonStandings(
     league.members.map((m) => m.id),
@@ -133,8 +158,34 @@ export default async function TeamSchedulePage({
     });
   }
 
+  const [nflverseRosters, schedule, previousSeasonStats] = await Promise.all([
+    getNflverseRosters(league.season),
+    getNflverseSchedule(league.season),
+    getNflverseWeeklyStats(liveState.previous_season),
+  ]);
+
+  const importedMatchup = league.matchups.find(
+    (m) => m.week === selectedWeek && (m.memberAId === memberId || m.memberBId === memberId),
+  );
+  const isImportedWeek = importedMatchup
+    ? (importedMatchup.memberAId === memberId
+        ? importedMatchup.importedPointsA
+        : importedMatchup.importedPointsB) !== null
+    : false;
+  const { starters: starterRows, bench: benchRows } = buildStarterRows({
+    ctx,
+    memberId,
+    week: selectedWeek,
+    isOwner,
+    isImportedWeek,
+    nflverseRosters,
+    schedule,
+    previousSeasonStats,
+    now: nowMs(),
+  });
+
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4">
       {/* SeasonView's tabs aren't URL-synced, so this always lands back on Matchup —
           known limitation, not worth the scope increase of URL-syncing the tab state. */}
       <Link
@@ -166,6 +217,22 @@ export default async function TeamSchedulePage({
             )}
           </div>
         </div>
+
+        <WeekSelect
+          basePath={`/leagues/${id}/team/${memberId}`}
+          week={selectedWeek}
+          seasonWeeks={SEASON_WEEKS}
+        />
+
+        <StartersView
+          leagueId={id}
+          week={selectedWeek}
+          starters={starterRows}
+          isImportedWeek={isImportedWeek}
+          isOwner={isOwner}
+        />
+
+        <BenchView leagueId={id} week={selectedWeek} bench={benchRows} />
 
         <div className="rounded-lg border border-border bg-card">
           <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">
@@ -215,6 +282,6 @@ export default async function TeamSchedulePage({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

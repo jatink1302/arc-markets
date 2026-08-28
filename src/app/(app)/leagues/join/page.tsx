@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { CreateLeagueForm } from "./create-league-form";
+import { JoinLeagueForm } from "./join-league-form";
 
-export default async function NewLeaguePage() {
+export default async function JoinLeaguePage() {
   await requireUser();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
       <Link
         href="/leagues"
         className="self-center text-sm text-muted-foreground hover:text-foreground"
       >
         ← My Leagues
       </Link>
-      <CreateLeagueForm />
-    </main>
+      <JoinLeagueForm />
+    </div>
   );
 }

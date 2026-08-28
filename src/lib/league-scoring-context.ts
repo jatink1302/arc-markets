@@ -25,6 +25,12 @@ type ScoringContextMatchup = {
   importedPointsB: number | null;
 };
 
+type ScoringContextWeeklyStarter = {
+  memberId: string;
+  week: number;
+  pickId: string;
+};
+
 // Shared by src/app/leagues/[id]/page.tsx (the Matchup tab) and the standalone
 // team-schedule route — both need the same "what's everyone's roster scoring this week"
 // setup. Two real call sites, unlike some one-off helpers deliberately not extracted
@@ -38,6 +44,9 @@ export async function buildSeasonScoringContext(
     // Only present for a league converted from Sleeper (see
     // fantasy-league-conversion.ts) — omit entirely for an organic native league.
     matchups?: ScoringContextMatchup[];
+    // Every FantasyWeeklyStarter row for the league — omit for a league with no manual
+    // lineup selections yet, same "optional, empty means pure greedy" style as matchups.
+    weeklyStarters?: ScoringContextWeeklyStarter[];
   },
   liveState: SleeperState,
 ) {
@@ -64,11 +73,34 @@ export async function buildSeasonScoringContext(
       )
     : new Map<string, NflverseRawWeekStat[]>();
 
+  // A member's manual set for week N carries forward to N+1, N+2, ... until they touch a
+  // later week again — resolved at read time by walking backward to the nearest week with
+  // any persisted rows, no scheduled job needed. See FantasyWeeklyStarter's schema comment.
+  const manualStartersByMemberWeek = new Map<string, Map<number, Set<string>>>();
+  for (const row of league.weeklyStarters ?? []) {
+    const memberWeeks = manualStartersByMemberWeek.get(row.memberId) ?? new Map<number, Set<string>>();
+    const set = memberWeeks.get(row.week) ?? new Set<string>();
+    set.add(row.pickId);
+    memberWeeks.set(row.week, set);
+    manualStartersByMemberWeek.set(row.memberId, memberWeeks);
+  }
+
+  function resolveManualStarters(memberId: string, week: number): Set<string> | undefined {
+    const memberWeeks = manualStartersByMemberWeek.get(memberId);
+    if (!memberWeeks) return undefined;
+    for (let w = week; w >= 1; w--) {
+      const set = memberWeeks.get(w);
+      if (set) return set;
+    }
+    return undefined;
+  }
+
   function lineupFor(memberId: string, week: number): WeeklyLineup {
     const picks = picksByMember.get(memberId) ?? [];
     return computeWeeklyLineup(
       picks.map((p) => ({
         id: p.id,
+        pickNo: p.pickNo,
         nflverseId: p.nflverseId,
         playerName: p.playerName,
         playerTeam: p.playerTeam,
@@ -78,6 +110,7 @@ export async function buildSeasonScoringContext(
       weekStats,
       week,
       scoringSettings,
+      resolveManualStarters(memberId, week),
     );
   }
 

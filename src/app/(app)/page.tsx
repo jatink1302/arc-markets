@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyStateCard } from "@/components/empty-state-card";
-import { ConvertLeagueButton } from "@/app/leagues/convert-league-button";
-import { ClaimTeamCard } from "@/app/leagues/claim-team-card";
+import { ConvertLeagueButton } from "@/app/(app)/leagues/convert-league-button";
+import { ClaimTeamCard } from "@/app/(app)/leagues/claim-team-card";
 
 const STATUS_LABELS: Record<string, string> = {
   FORMING: "Forming",
