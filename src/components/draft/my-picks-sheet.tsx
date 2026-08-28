@@ -50,7 +50,11 @@ export function MyPicksSheet({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed inset-x-0 bottom-20 z-40 mx-auto flex w-fit items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition-colors hover:text-primary md:bottom-6"
+        className={cn(
+          "fixed inset-x-0 bottom-20 z-40 mx-auto flex w-fit items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground transition-colors hover:text-primary md:bottom-6",
+          "border border-white/15 bg-card/50 backdrop-blur-xl backdrop-saturate-150",
+          "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_8px_24px_-4px_rgba(0,0,0,0.45)]",
+        )}
       >
         <ChevronUp className="h-3.5 w-3.5" />
         My Team
