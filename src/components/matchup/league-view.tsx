@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyStateCard } from "@/components/empty-state-card";
-import { TeamBadge } from "@/components/matchup/team-badge";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 import type { StandingsRow, WeekMatchupPairing } from "@/components/matchup/types";
 
 export function LeagueView({
@@ -29,8 +29,16 @@ export function LeagueView({
             >
               <div className="flex items-center gap-3">
                 <span className="w-4 font-mono text-xs text-muted-foreground">{i + 1}</span>
-                <TeamBadge name={row.name} size="sm" />
-                <span className="text-sm font-medium text-foreground">{row.name}</span>
+                <TeamAvatar
+                  sleeperRosterId={row.sleeperRosterId}
+                  name={row.name}
+                  logoUrl={row.logoUrl}
+                  accent="positive"
+                  size="sm"
+                />
+                <span className="truncate font-display text-sm tracking-wide text-foreground">
+                  {row.name}
+                </span>
               </div>
               <div className="flex items-center gap-4 font-mono text-xs text-muted-foreground">
                 <span>

@@ -88,11 +88,13 @@ function fptsOf(settings: SleeperRosterDTO["settings"]): number {
 export function computeStandings(
   sleeperRosters: SleeperRosterDTO[],
   rosterDisplayName: (rosterId: number) => string,
+  rosterLogoUrl: (rosterId: number) => string | null,
 ): StandingsRow[] {
   return sleeperRosters
     .map((r) => ({
       sleeperRosterId: r.roster_id,
       name: rosterDisplayName(r.roster_id),
+      logoUrl: rosterLogoUrl(r.roster_id),
       wins: r.settings?.wins ?? 0,
       losses: r.settings?.losses ?? 0,
       ties: r.settings?.ties ?? 0,

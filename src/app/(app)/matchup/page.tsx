@@ -131,7 +131,7 @@ export default async function MatchupPage({
         )
       : undefined;
 
-  const standingsForBoxscore = computeStandings(sleeperRosters, rosterDisplayName);
+  const standingsForBoxscore = computeStandings(sleeperRosters, rosterDisplayName, rosterLogoUrl);
   function recordFor(rosterId: number) {
     const s = standingsForBoxscore.find((r) => r.sleeperRosterId === rosterId);
     return s ? { wins: s.wins, losses: s.losses, ties: s.ties } : null;
@@ -180,7 +180,7 @@ export default async function MatchupPage({
     ? buildRows((myRosterDto.players ?? []).filter((pid) => !starterSet.has(pid)))
     : [];
 
-  const standings = computeStandings(sleeperRosters, rosterDisplayName);
+  const standings = computeStandings(sleeperRosters, rosterDisplayName, rosterLogoUrl);
   const myStandingIndex = myRosterDto
     ? standings.findIndex((s) => s.sleeperRosterId === myRosterDto.roster_id)
     : -1;

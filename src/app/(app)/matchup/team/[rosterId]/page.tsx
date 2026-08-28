@@ -54,6 +54,10 @@ export default async function TeamPage({
   function rosterDisplayName(id: number): string {
     return dbRosterBySleeperId.get(id)?.displayName ?? `Team ${id}`;
   }
+  function rosterLogoUrl(id: number): string | null {
+    const r = dbRosterBySleeperId.get(id);
+    return r ? resolveTeamLogoUrl(r) : null;
+  }
 
   const teamName = rosterDisplayName(targetRosterDto.roster_id);
   const targetDbRoster = dbRosterBySleeperId.get(targetRosterDto.roster_id);
@@ -70,7 +74,7 @@ export default async function TeamPage({
     playerBySleeperId,
   );
 
-  const standings = computeStandings(sleeperRosters, rosterDisplayName);
+  const standings = computeStandings(sleeperRosters, rosterDisplayName, rosterLogoUrl);
   const standingIndex = standings.findIndex((s) => s.sleeperRosterId === targetRosterId);
   const standing = standingIndex >= 0 ? standings[standingIndex] : null;
   const rank = standingIndex >= 0 ? standingIndex + 1 : null;
