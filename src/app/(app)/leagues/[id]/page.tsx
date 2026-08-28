@@ -21,6 +21,7 @@ import { FreeAgentsView, type FreeAgentPlayer } from "./free-agents-view";
 import { ActivityView, type ActivityEntry } from "./activity-view";
 import { WeekSelect } from "./week-select";
 import { StartersView } from "./starters-view";
+import { BenchView } from "./bench-view";
 import { totalRosterSlots, type RosterSettings, type ScoringSettings } from "@/lib/fantasy-defaults";
 
 const DRAFT_ELIGIBLE_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
@@ -155,7 +156,7 @@ export default async function LeaguePage({
           ? myImportedMatchup.importedPointsA
           : myImportedMatchup.importedPointsB) !== null
       : false;
-    const myStarterRows = buildStarterRows({
+    const { starters: myStarterRows, bench: myBenchRows } = buildStarterRows({
       ctx,
       memberId: me.id,
       week: selectedWeek,
@@ -176,6 +177,7 @@ export default async function LeaguePage({
           isImportedWeek={myWeekIsImported}
           isOwner
         />
+        <BenchView bench={myBenchRows} />
       </div>
     );
 

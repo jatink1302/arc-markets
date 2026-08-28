@@ -12,6 +12,7 @@ import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { WeekSelect } from "../../week-select";
 import { StartersView } from "../../starters-view";
+import { BenchView } from "../../bench-view";
 
 // Isolated from the page component body on purpose — react-hooks/purity flags a direct
 // Date.now() call inside a component's render, even a Server Component's.
@@ -171,7 +172,7 @@ export default async function TeamSchedulePage({
         ? importedMatchup.importedPointsA
         : importedMatchup.importedPointsB) !== null
     : false;
-  const starterRows = buildStarterRows({
+  const { starters: starterRows, bench: benchRows } = buildStarterRows({
     ctx,
     memberId,
     week: selectedWeek,
@@ -230,6 +231,8 @@ export default async function TeamSchedulePage({
           isImportedWeek={isImportedWeek}
           isOwner={isOwner}
         />
+
+        <BenchView bench={benchRows} />
 
         <div className="rounded-lg border border-border bg-card">
           <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">

@@ -11,6 +11,7 @@ import type {
   NflverseWeeklyStat,
 } from "@/lib/nflverse";
 import type { StarterRow, BenchOption } from "@/app/(app)/leagues/[id]/starters-view";
+import type { BenchRow } from "@/app/(app)/leagues/[id]/bench-view";
 
 type ScoringContext = Awaited<ReturnType<typeof buildSeasonScoringContext>>;
 
@@ -37,7 +38,7 @@ export function buildStarterRows({
   schedule: Map<string, Map<number, NflverseScheduleEntry>>;
   previousSeasonStats: Map<string, NflverseWeeklyStat[]>;
   now: number;
-}): StarterRow[] {
+}): { starters: StarterRow[]; bench: BenchRow[] } {
   const canEditLineup = isOwner && !isImportedWeek;
 
   function scheduleLabelFor(team: string | null): { label: string; locked: boolean } {
@@ -83,9 +84,9 @@ export function buildStarterRows({
   // engine isn't guaranteed to reproduce exactly (see the FantasyMatchup schema comment) —
   // showing a Summit-recomputed lineup/per-player breakdown here would present a fabricated
   // "starters" list that might not be what was actually started, or sum to the real score.
-  if (isImportedWeek) return [];
+  if (isImportedWeek) return { starters: [], bench: [] };
 
-  return lineup.starters.map((s) => {
+  const starters = lineup.starters.map((s) => {
     const { label, locked } = scheduleLabelFor(s.playerTeam);
     const hasStats = ctx.weekStats.get(s.nflverseId)?.some((l) => l.week === week) ?? false;
     return {
@@ -111,4 +112,21 @@ export function buildStarterRows({
           : [],
     };
   });
+
+  const bench = lineup.bench.map((b) => {
+    const { label } = scheduleLabelFor(b.playerTeam);
+    const hasStats = ctx.weekStats.get(b.nflverseId)?.some((l) => l.week === week) ?? false;
+    return {
+      pickId: b.id,
+      playerName: b.playerName,
+      playerTeam: b.playerTeam,
+      playerPosition: b.playerPosition,
+      headshotUrl: nflverseRosters.byGsisId.get(b.nflverseId)?.headshotUrl ?? null,
+      scheduleLabel: label,
+      projectedPoints: projectedPointsForPlayer(b.nflverseId, previousSeasonStats),
+      points: hasStats ? b.points : null,
+    };
+  });
+
+  return { starters, bench };
 }
