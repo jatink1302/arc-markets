@@ -174,6 +174,7 @@ export default async function LeaguePage({
           week={selectedWeek}
           starters={myStarterRows}
           isImportedWeek={myWeekIsImported}
+          isOwner
         />
       </div>
     );

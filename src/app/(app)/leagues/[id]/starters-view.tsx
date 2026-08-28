@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PlayerAvatar } from "@/components/player-avatar";
 import { cn, shortSlot } from "@/lib/utils";
-import { setWeeklyStarter } from "@/app/actions/fantasy-lineup";
+import { Button } from "@/components/ui/button";
+import { setWeeklyStarter, setBestLineup } from "@/app/actions/fantasy-lineup";
 
 export type BenchOption = {
   pickId: string;
@@ -38,16 +39,19 @@ export function StartersView({
   week,
   starters,
   isImportedWeek,
+  isOwner,
 }: {
   leagueId: string;
   week: number;
   starters: StarterRow[];
   isImportedWeek: boolean;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [openPickId, setOpenPickId] = useState<string | null>(null);
 
+  const canEdit = isOwner && !isImportedWeek;
   const openRow = starters.find((s) => s.pickId === openPickId) ?? null;
   const benchOptions = openRow?.benchOptions ?? [];
 
@@ -65,16 +69,42 @@ export function StartersView({
     });
   }
 
+  function handleSetBest() {
+    startTransition(async () => {
+      const result = await setBestLineup(leagueId, week);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Set your best lineup.");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card">
-      <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">
-        Starters — Week {week}
-        {isImportedWeek && (
-          <span className="ml-2 normal-case text-muted-foreground/70">
-            (final, imported from Sleeper)
-          </span>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <h3 className="font-heading text-xs uppercase tracking-wide text-muted-foreground">
+          Starters — Week {week}
+          {isImportedWeek && (
+            <span className="ml-2 normal-case text-muted-foreground/70">
+              (final, imported from Sleeper)
+            </span>
+          )}
+        </h3>
+        {canEdit && starters.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            onClick={handleSetBest}
+            className="shrink-0"
+          >
+            Set Best Lineup
+          </Button>
         )}
-      </h3>
+      </div>
       <div className="flex flex-col divide-y divide-border/60">
         {starters.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">

@@ -228,6 +228,7 @@ export default async function TeamSchedulePage({
           week={selectedWeek}
           starters={starterRows}
           isImportedWeek={isImportedWeek}
+          isOwner={isOwner}
         />
 
         <div className="rounded-lg border border-border bg-card">

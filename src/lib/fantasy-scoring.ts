@@ -102,6 +102,52 @@ export function computeWeeklyLineup(
   return { starters, bench, totalPoints };
 }
 
+// "Set Best Lineup": the highest-projected combination from a candidate pool, filling a given
+// slot capacity. Deliberately a separate, small function rather than a refactor of
+// computeWeeklyLineup above — that function is already the more complex, thoroughly-tested
+// one; a little duplication here is the safer trade against risking a regression in it. No
+// manual-priority concept (this computes a fresh recommendation, not respecting an existing
+// choice), and no real-points fallback (ranks purely by projection, the only honest basis for
+// a week that hasn't been played yet). The caller (lib/lineup.ts) is responsible for excluding
+// any locked (already-kicked-off) picks from `candidates` and reducing `slotsNeeded` by
+// whatever's already pinned — this function just fills whatever capacity it's given.
+export function computeBestLineupPickIds(
+  candidates: LineupPickInput[],
+  slotsNeeded: RosterSettings,
+  projectedPointsByNflverseId: Map<string, number>,
+): Set<string> {
+  function projFor(nflverseId: string): number {
+    return projectedPointsByNflverseId.get(nflverseId) ?? 0;
+  }
+
+  const remaining = new Set(candidates.map((p) => p.id));
+  const chosen = new Set<string>();
+
+  function takeTop(eligible: (p: LineupPickInput) => boolean, count: number) {
+    const pool = candidates
+      .filter((p) => remaining.has(p.id) && eligible(p))
+      .sort((a, b) => projFor(b.nflverseId) - projFor(a.nflverseId));
+    for (let i = 0; i < count && i < pool.length; i++) {
+      chosen.add(pool[i].id);
+      remaining.delete(pool[i].id);
+    }
+  }
+
+  for (const slot of STRICT_SLOTS) {
+    takeTop((p) => p.playerPosition === slot, slotsNeeded[slot] ?? 0);
+  }
+  takeTop(
+    (p) => !!p.playerPosition && FLEX_ELIGIBLE.has(p.playerPosition),
+    slotsNeeded.FLEX ?? 0,
+  );
+  takeTop(
+    (p) => !!p.playerPosition && SUPERFLEX_ELIGIBLE.has(p.playerPosition),
+    slotsNeeded.SUPERFLEX ?? 0,
+  );
+
+  return chosen;
+}
+
 // A simple, honest stand-in for real projections (this app has no such data source): a
 // player's average PPR points per game from last season. Same heuristic already used for the
 // Sleeper-connected Matchup card's team-level projection — extracted here as a pure function
