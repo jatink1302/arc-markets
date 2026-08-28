@@ -16,8 +16,14 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur md:hidden">
-      <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
+    <nav
+      className={cn(
+        "fixed inset-x-3 bottom-3 z-10 md:hidden",
+        "rounded-[28px] border border-white/15 bg-background/30 backdrop-blur-2xl backdrop-saturate-200",
+        "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_8px_32px_-8px_rgba(0,0,0,0.5)]",
+      )}
+    >
+      <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2.5">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
