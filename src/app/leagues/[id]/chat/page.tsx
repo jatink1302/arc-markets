@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
+import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { ChatComposer } from "../chat-composer";
 
 function formatTime(d: Date): string {
@@ -38,6 +40,11 @@ export default async function LeagueChatPage({
   const me = league.members.find((m) => m.userId === authUser.id);
   if (!me) redirect("/leagues/join");
 
+  const logoUrlByMember = await resolveNativeMemberLogoUrls(
+    league.members.map((m) => ({ id: m.id, sleeperRosterId: m.sleeperRosterId })),
+    league.sourceSleeperLeagueId,
+  );
+
   const messages = [...league.chatMessages].reverse();
 
   return (
@@ -68,25 +75,36 @@ export default async function LeagueChatPage({
               return (
                 <div
                   key={msg.id}
-                  className={`flex flex-col gap-0.5 ${isMine ? "items-end" : "items-start"}`}
+                  className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
                 >
-                  <div
-                    className={`max-w-[85%] rounded-lg border px-3 py-2 text-sm ${
-                      isMine
-                        ? "border-primary/30 bg-primary/15 text-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {!isMine && (
-                      <div className="mb-0.5 text-xs font-medium text-muted-foreground">
-                        {senderName}
-                      </div>
-                    )}
-                    <div className="whitespace-pre-wrap break-words">{msg.body}</div>
+                  {!isMine && (
+                    <TeamAvatar
+                      sleeperRosterId={null}
+                      name={senderName}
+                      logoUrl={logoUrlByMember.get(msg.memberId) ?? null}
+                      accent="positive"
+                      size="sm"
+                    />
+                  )}
+                  <div className={`flex max-w-[75%] flex-col gap-0.5 ${isMine ? "items-end" : "items-start"}`}>
+                    <div
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        isMine
+                          ? "border-primary/30 bg-primary/15 text-foreground"
+                          : "border-border bg-card text-foreground"
+                      }`}
+                    >
+                      {!isMine && (
+                        <div className="mb-0.5 font-display text-xs tracking-wide text-positive">
+                          {senderName}
+                        </div>
+                      )}
+                      <div className="whitespace-pre-wrap break-words">{msg.body}</div>
+                    </div>
+                    <span className="px-1 font-mono text-[0.65rem] text-muted-foreground">
+                      {formatTime(msg.createdAt)}
+                    </span>
                   </div>
-                  <span className="px-1 font-mono text-[0.65rem] text-muted-foreground">
-                    {formatTime(msg.createdAt)}
-                  </span>
                 </div>
               );
             })

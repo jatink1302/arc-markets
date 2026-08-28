@@ -88,7 +88,7 @@ export function TradesView({
                   <span className="text-xs text-muted-foreground">↩ Countered offer</span>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  <span className="min-w-0 flex-1 truncate font-display text-sm tracking-wide text-foreground">
                     {t.proposerName} ↔ {t.recipientName}
                   </span>
                   {t.isIncoming && (
@@ -146,7 +146,7 @@ export function TradesView({
                   <span className="text-xs text-muted-foreground">↩ Countered offer</span>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                  <span className="min-w-0 flex-1 truncate font-display text-sm tracking-wide text-foreground">
                     {t.proposerName} ↔ {t.recipientName}
                   </span>
                   <Badge
