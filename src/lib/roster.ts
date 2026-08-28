@@ -36,6 +36,17 @@ export function buildRosterRows(
   });
 }
 
+// Shared by every place a SleeperRoster's logo is displayed (Matchup card, Team/roster
+// views). customLogoUrl (user-uploaded, see team-logo.ts) wins when set; otherwise
+// avatarUrl is a raw Sleeper avatar-hash ID, not a full URL — construct the real CDN URL.
+export function resolveTeamLogoUrl(roster: {
+  customLogoUrl: string | null;
+  avatarUrl: string | null;
+}): string | null {
+  if (roster.customLogoUrl) return roster.customLogoUrl;
+  return roster.avatarUrl ? `https://sleepercdn.com/avatars/thumbs/${roster.avatarUrl}` : null;
+}
+
 function fptsOf(settings: SleeperRosterDTO["settings"]): number {
   if (!settings) return 0;
   return settings.fpts + (settings.fpts_decimal ?? 0) / 100;

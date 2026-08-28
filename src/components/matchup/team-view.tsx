@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { RosterPlayerRow, type RosterPlayerRowData } from "@/components/matchup/roster-player-row";
 
 export function TeamView({
   teamName,
+  sleeperRosterId,
+  logoUrl,
   starters,
   bench,
   isOwnTeam = false,
@@ -14,6 +17,8 @@ export function TeamView({
   backLabel,
 }: {
   teamName: string | null;
+  sleeperRosterId?: number | null;
+  logoUrl?: string | null;
   starters: RosterPlayerRowData[];
   bench: RosterPlayerRowData[];
   isOwnTeam?: boolean;
@@ -40,26 +45,38 @@ export function TeamView({
         </Link>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-heading text-lg uppercase tracking-wide text-foreground">
-            {teamName}
-          </h2>
-          {(record || rank) && (
-            <p className="font-mono text-xs text-muted-foreground">
-              {record && (
-                <>
-                  {record.wins}-{record.losses}
-                  {record.ties > 0 ? `-${record.ties}` : ""}
-                </>
-              )}
-              {record && rank ? " · " : ""}
-              {rank && `#${rank}${totalTeams ? ` of ${totalTeams}` : ""}`}
-            </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {sleeperRosterId != null && (
+            <TeamAvatar
+              sleeperRosterId={sleeperRosterId}
+              name={teamName}
+              logoUrl={logoUrl ?? null}
+              accent="positive"
+              size="sm"
+              uploadable={isOwnTeam}
+            />
           )}
+          <div>
+            <h2 className="font-heading text-lg uppercase tracking-wide text-foreground">
+              {teamName}
+            </h2>
+            {(record || rank) && (
+              <p className="font-mono text-xs text-muted-foreground">
+                {record && (
+                  <>
+                    {record.wins}-{record.losses}
+                    {record.ties > 0 ? `-${record.ties}` : ""}
+                  </>
+                )}
+                {record && rank ? " · " : ""}
+                {rank && `#${rank}${totalTeams ? ` of ${totalTeams}` : ""}`}
+              </p>
+            )}
+          </div>
         </div>
         {isOwnTeam && (
-          <Link href="/portfolio" className="text-xs text-primary hover:underline">
+          <Link href="/portfolio" className="shrink-0 text-xs text-primary hover:underline">
             View your positions →
           </Link>
         )}

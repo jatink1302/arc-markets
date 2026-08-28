@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState, getLeagueRosters, getLeagueStarterSlots, getMatchups } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseWeeklyStats, normalizePlayerName } from "@/lib/nflverse";
-import { buildRosterRows, computeStandings } from "@/lib/roster";
+import { buildRosterRows, computeStandings, resolveTeamLogoUrl } from "@/lib/roster";
 import { NoLeagueCard } from "@/components/no-league-card";
 import { MatchupTabs } from "@/components/matchup/matchup-tabs";
 import { MatchupView } from "@/components/matchup/matchup-view";
@@ -66,11 +66,7 @@ export default async function MatchupPage({
   }
   function rosterLogoUrl(rosterId: number): string | null {
     const r = dbRosterBySleeperId.get(rosterId);
-    if (r?.customLogoUrl) return r.customLogoUrl;
-    // avatarUrl is a raw Sleeper avatar-hash ID (from owner.avatar in the Sleeper API),
-    // not a full URL — never actually rendered anywhere before this. Real CDN convention:
-    // https://sleepercdn.com/avatars/thumbs/{hash}.
-    return r?.avatarUrl ? `https://sleepercdn.com/avatars/thumbs/${r.avatarUrl}` : null;
+    return r ? resolveTeamLogoUrl(r) : null;
   }
 
   function buildRows(
@@ -281,6 +277,8 @@ export default async function MatchupPage({
         teamSlot={
           <TeamView
             teamName={myTeamName}
+            sleeperRosterId={myRosterDto?.roster_id ?? null}
+            logoUrl={myRosterDto ? rosterLogoUrl(myRosterDto.roster_id) : null}
             starters={myStarters}
             bench={myBench}
             isOwnTeam
