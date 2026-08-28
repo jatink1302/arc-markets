@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { MyPicksSheet } from "@/components/draft/my-picks-sheet";
 import { makePick } from "@/app/actions/fantasy-league";
 import { currentRound, whoseTurnMemberId } from "@/lib/draft-order";
 import { totalRosterSlots, type RosterSettings } from "@/lib/fantasy-defaults";
@@ -111,6 +112,21 @@ export function DraftBoard({
 
   const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const myMemberId = members.find((m) => m.userId === currentUserId)?.id ?? null;
+
+  const myPicks = useMemo(
+    () =>
+      picks
+        .filter((p) => p.memberId === myMemberId)
+        .map((p) => ({
+          id: p.id,
+          playerName: p.playerName,
+          playerTeam: p.playerTeam,
+          playerPosition: p.playerPosition,
+          round: p.round,
+          pickNo: p.pickNo,
+        })),
+    [picks, myMemberId],
+  );
 
   const onTheClockMemberId = whoseTurnMemberId(draftOrder, currentPickNo);
   const isMyTurn = onTheClockMemberId !== null && onTheClockMemberId === myMemberId;
@@ -299,6 +315,8 @@ export function DraftBoard({
           )}
         </CardContent>
       </Card>
+
+      <MyPicksSheet picks={myPicks} rosterSettings={rosterSettings} />
     </div>
   );
 }

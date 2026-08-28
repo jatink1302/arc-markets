@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MyPicksSheet } from "@/components/draft/my-picks-sheet";
 import { cn } from "@/lib/utils";
 import { currentRound, whoseTurnMemberId } from "@/lib/draft-order";
 import { DEFAULT_ROSTER_SETTINGS, totalRosterSlots } from "@/lib/fantasy-defaults";
@@ -251,6 +252,16 @@ export function MockDraftClient({ players }: { players: DraftablePlayer[] }) {
   const round = currentRound(currentPickNo, draftOrder.length) + 1;
   const pickInRound = (currentPickNo % draftOrder.length) + 1;
   const recentPicks = [...picks].sort((a, b) => b.pickNo - a.pickNo);
+  const myPicks = picks
+    .filter((p) => p.teamId === "user")
+    .map((p) => ({
+      id: p.player.nflverseId,
+      playerName: p.player.name,
+      playerTeam: p.player.team,
+      playerPosition: p.player.position,
+      round: p.round,
+      pickNo: p.pickNo,
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -363,6 +374,8 @@ export function MockDraftClient({ players }: { players: DraftablePlayer[] }) {
           )}
         </CardContent>
       </Card>
+
+      <MyPicksSheet picks={myPicks} rosterSettings={DEFAULT_ROSTER_SETTINGS} />
     </div>
   );
 }
