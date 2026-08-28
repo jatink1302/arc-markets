@@ -232,7 +232,7 @@ export default async function TeamSchedulePage({
           isOwner={isOwner}
         />
 
-        <BenchView bench={benchRows} />
+        <BenchView leagueId={id} week={selectedWeek} bench={benchRows} />
 
         <div className="rounded-lg border border-border bg-card">
           <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">

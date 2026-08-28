@@ -114,7 +114,7 @@ export function buildStarterRows({
   });
 
   const bench = lineup.bench.map((b) => {
-    const { label } = scheduleLabelFor(b.playerTeam);
+    const { label, locked } = scheduleLabelFor(b.playerTeam);
     const hasStats = ctx.weekStats.get(b.nflverseId)?.some((l) => l.week === week) ?? false;
     return {
       pickId: b.id,
@@ -125,6 +125,24 @@ export function buildStarterRows({
       scheduleLabel: label,
       projectedPoints: projectedPointsForPlayer(b.nflverseId, previousSeasonStats),
       points: hasStats ? b.points : null,
+      starterOptions:
+        canEditLineup && !locked
+          ? lineup.starters
+              .filter(
+                (s) =>
+                  isEligibleForSlot(b.playerPosition, s.slot) &&
+                  !scheduleLabelFor(s.playerTeam).locked,
+              )
+              .map((s) => ({
+                pickId: s.id,
+                slot: s.slot,
+                playerName: s.playerName,
+                playerTeam: s.playerTeam,
+                playerPosition: s.playerPosition,
+                headshotUrl: nflverseRosters.byGsisId.get(s.nflverseId)?.headshotUrl ?? null,
+                projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
+              }))
+          : [],
     };
   });
 

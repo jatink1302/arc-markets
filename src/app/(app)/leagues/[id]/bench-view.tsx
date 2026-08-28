@@ -1,4 +1,22 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PlayerAvatar } from "@/components/player-avatar";
+import { cn, shortSlot } from "@/lib/utils";
+import { setWeeklyStarter } from "@/app/actions/fantasy-lineup";
+
+export type StarterOption = {
+  pickId: string;
+  slot: string;
+  playerName: string;
+  playerTeam: string | null;
+  playerPosition: string | null;
+  headshotUrl: string | null;
+  projectedPoints: number;
+};
 
 export type BenchRow = {
   pickId: string;
@@ -9,9 +27,42 @@ export type BenchRow = {
   scheduleLabel: string;
   projectedPoints: number;
   points: number | null; // null = no real stats yet, shown as "-"
+  // Eligible starting slots this bench player could fill — always empty when not the
+  // owner, this player's own game has already kicked off, or the week is final, which is
+  // what actually gates the tap-to-start UI.
+  starterOptions: StarterOption[];
 };
 
-export function BenchView({ bench }: { bench: BenchRow[] }) {
+export function BenchView({
+  leagueId,
+  week,
+  bench,
+}: {
+  leagueId: string;
+  week: number;
+  bench: BenchRow[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [openPickId, setOpenPickId] = useState<string | null>(null);
+
+  const openRow = bench.find((b) => b.pickId === openPickId) ?? null;
+  const starterOptions = openRow?.starterOptions ?? [];
+
+  function handleSwap(starterPickId: string) {
+    if (!openRow) return;
+    startTransition(async () => {
+      const result = await setWeeklyStarter(leagueId, week, starterPickId, openRow.pickId);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setOpenPickId(null);
+      toast.success("Lineup updated.");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-4 py-2.5">
@@ -23,29 +74,91 @@ export function BenchView({ bench }: { bench: BenchRow[] }) {
         {bench.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">No bench players.</p>
         ) : (
-          bench.map((row) => (
-            <div key={row.pickId} className="flex items-center gap-3 px-4 py-2.5">
-              <PlayerAvatar headshotUrl={row.headshotUrl} name={row.playerName} className="h-9 w-9" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-foreground">
-                  {row.playerName}
+          bench.map((row) => {
+            const canSwap = row.starterOptions.length > 0;
+            return (
+              <div key={row.pickId} className="flex items-center gap-3 px-4 py-2.5">
+                <button
+                  type="button"
+                  disabled={!canSwap || isPending}
+                  onClick={() => setOpenPickId(row.pickId)}
+                  className={cn(
+                    "w-14 shrink-0 rounded-full border px-2 py-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                    canSwap
+                      ? "border-positive/40 text-positive hover:bg-positive/10"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  {row.playerPosition ?? "UNK"}
+                </button>
+                <PlayerAvatar
+                  headshotUrl={row.headshotUrl}
+                  name={row.playerName}
+                  className="h-9 w-9"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-foreground">
+                    {row.playerName}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {row.playerPosition ?? "UNK"} · {row.scheduleLabel}
+                  </div>
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {row.playerPosition ?? "UNK"} · {row.scheduleLabel}
+                <div className="shrink-0 text-right">
+                  <div className="font-mono text-sm text-foreground">
+                    {row.points !== null ? row.points.toFixed(1) : "-"}
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    Proj {row.projectedPoints.toFixed(1)}
+                  </div>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
-                <div className="font-mono text-sm text-foreground">
-                  {row.points !== null ? row.points.toFixed(1) : "-"}
-                </div>
-                <div className="font-mono text-[10px] text-muted-foreground">
-                  Proj {row.projectedPoints.toFixed(1)}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      <Dialog open={openRow !== null} onOpenChange={(open) => !open && setOpenPickId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start {openRow?.playerName ?? ""}</DialogTitle>
+          </DialogHeader>
+          <div className="-mx-4 flex flex-col divide-y divide-border/60">
+            {starterOptions.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">
+                No eligible starting slot.
+              </p>
+            ) : (
+              starterOptions.map((s) => (
+                <button
+                  key={s.pickId}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleSwap(s.pickId)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-secondary disabled:opacity-60"
+                >
+                  <PlayerAvatar
+                    headshotUrl={s.headshotUrl}
+                    name={s.playerName}
+                    className="h-9 w-9"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {s.playerName}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {shortSlot(s.slot)} · {s.playerPosition ?? "UNK"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 font-mono text-xs text-muted-foreground">
+                    Proj {s.projectedPoints.toFixed(1)}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

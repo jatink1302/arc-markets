@@ -177,7 +177,7 @@ export default async function LeaguePage({
           isImportedWeek={myWeekIsImported}
           isOwner
         />
-        <BenchView bench={myBenchRows} />
+        <BenchView leagueId={league.id} week={selectedWeek} bench={myBenchRows} />
       </div>
     );
 
