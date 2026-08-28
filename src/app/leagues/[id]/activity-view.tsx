@@ -84,7 +84,7 @@ export function ActivityView({ entries }: { entries: ActivityEntry[] }) {
               >
                 <div className="min-w-0">
                   <span className="text-sm text-foreground">
-                    <span className="font-medium">{entry.teamName}</span>{" "}
+                    <span className="font-display tracking-wide">{entry.teamName}</span>{" "}
                     {VERB_BY_TYPE[entry.type]} {entry.playerName}
                   </span>
                   <div className="truncate text-xs text-muted-foreground">
