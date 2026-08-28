@@ -40,7 +40,6 @@ export function StartersView({
   isImportedWeek,
 }: {
   leagueId: string;
-  memberId: string;
   week: number;
   starters: StarterRow[];
   isImportedWeek: boolean;
@@ -78,7 +77,11 @@ export function StartersView({
       </h3>
       <div className="flex flex-col divide-y divide-border/60">
         {starters.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No starters set for this week.</p>
+          <p className="p-4 text-sm text-muted-foreground">
+            {isImportedWeek
+              ? "This week's score is final, imported directly from Sleeper — a per-player breakdown isn't available."
+              : "No starters set for this week."}
+          </p>
         ) : (
           starters.map((row) => {
             const canSwap = row.benchOptions.length > 0;
@@ -86,7 +89,7 @@ export function StartersView({
               <div key={row.pickId} className="flex items-center gap-3 px-4 py-2.5">
                 <button
                   type="button"
-                  disabled={!canSwap}
+                  disabled={!canSwap || isPending}
                   onClick={() => setOpenPickId(row.pickId)}
                   className={cn(
                     "w-14 shrink-0 rounded-full border px-2 py-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide transition-colors",

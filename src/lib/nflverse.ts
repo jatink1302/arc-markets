@@ -173,7 +173,13 @@ export type NflverseScheduleEntry = { opponent: string; isHome: boolean; kickoff
 let scheduleRowsPromise: Promise<Record<string, string>[]> | null = null;
 function getScheduleRows(): Promise<Record<string, string>[]> {
   if (!scheduleRowsPromise) {
-    scheduleRowsPromise = fetchCsv(`${RELEASES_BASE}/schedules/games.csv`);
+    // A rejected promise would otherwise stay cached forever (this module lives for the
+    // server process's lifetime) — a single transient network blip would permanently break
+    // every lock/schedule check until restart. Clear on failure so the next call retries.
+    scheduleRowsPromise = fetchCsv(`${RELEASES_BASE}/schedules/games.csv`).catch((err) => {
+      scheduleRowsPromise = null;
+      throw err;
+    });
   }
   return scheduleRowsPromise;
 }
@@ -204,7 +210,10 @@ export async function getNflverseSchedule(
       set(row.away_team, row.home_team, false);
     }
     return byTeamWeek;
-  })();
+  })().catch((err) => {
+    scheduleCache.delete(season);
+    throw err;
+  });
 
   scheduleCache.set(season, promise);
   return promise;

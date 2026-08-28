@@ -5,6 +5,7 @@ import { getNflState } from "@/lib/sleeper";
 import { getNflverseSchedule } from "@/lib/nflverse";
 import { FLEX_ELIGIBLE, SUPERFLEX_ELIGIBLE } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
+import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 
 export class LineupError extends Error {}
 
@@ -17,6 +18,16 @@ export async function setWeeklyStarter(
   starterPickId: string,
   benchPickId: string,
 ) {
+  // Server Actions are callable directly (not just from this app's own UI, which always
+  // passes an already-bounded week) — a crafted request could send anything, and TS types
+  // aren't enforced at runtime, so this has to be checked here, not just upstream.
+  if (!Number.isInteger(week) || week < 1 || week > SEASON_WEEKS) {
+    throw new LineupError("That's not a valid week.");
+  }
+  if (starterPickId === benchPickId) {
+    throw new LineupError("Pick a different player to swap in.");
+  }
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       return await prisma.$transaction(

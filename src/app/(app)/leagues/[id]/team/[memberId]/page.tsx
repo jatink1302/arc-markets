@@ -216,28 +216,39 @@ export default async function TeamSchedulePage({
   }
 
   const lineup = ctx.lineupFor(memberId, selectedWeek);
-  const starterRows: StarterRow[] = lineup.starters.map((s) => {
-    const { label, locked } = scheduleLabelFor(s.playerTeam);
-    const hasStats = ctx.weekStats.get(s.nflverseId)?.some((l) => l.week === selectedWeek) ?? false;
-    return {
-      pickId: s.id,
-      slot: s.slot,
-      playerName: s.playerName,
-      playerTeam: s.playerTeam,
-      playerPosition: s.playerPosition,
-      headshotUrl: nflverseRosters.byGsisId.get(s.nflverseId)?.headshotUrl ?? null,
-      scheduleLabel: label,
-      projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
-      points: hasStats ? s.points : null,
-      locked,
-      benchOptions:
-        canEditLineup && !locked
-          ? lineup.bench
-              .filter((b) => isEligibleForSlot(b.playerPosition, s.slot) && !scheduleLabelFor(b.playerTeam).locked)
-              .map(benchOptionFor)
-          : [],
-    };
-  });
+  // An imported week's real score came from Sleeper's own scoring rules, which Summit's
+  // engine isn't guaranteed to reproduce exactly (see the FantasyMatchup schema comment) —
+  // showing a Summit-recomputed lineup/per-player breakdown here would present a fabricated
+  // "starters" list that might not be what was actually started, or sum to the real score.
+  const starterRows: StarterRow[] = isImportedWeek
+    ? []
+    : lineup.starters.map((s) => {
+        const { label, locked } = scheduleLabelFor(s.playerTeam);
+        const hasStats =
+          ctx.weekStats.get(s.nflverseId)?.some((l) => l.week === selectedWeek) ?? false;
+        return {
+          pickId: s.id,
+          slot: s.slot,
+          playerName: s.playerName,
+          playerTeam: s.playerTeam,
+          playerPosition: s.playerPosition,
+          headshotUrl: nflverseRosters.byGsisId.get(s.nflverseId)?.headshotUrl ?? null,
+          scheduleLabel: label,
+          projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
+          points: hasStats ? s.points : null,
+          locked,
+          benchOptions:
+            canEditLineup && !locked
+              ? lineup.bench
+                  .filter(
+                    (b) =>
+                      isEligibleForSlot(b.playerPosition, s.slot) &&
+                      !scheduleLabelFor(b.playerTeam).locked,
+                  )
+                  .map(benchOptionFor)
+              : [],
+        };
+      });
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -281,7 +292,6 @@ export default async function TeamSchedulePage({
 
         <StartersView
           leagueId={id}
-          memberId={memberId}
           week={selectedWeek}
           starters={starterRows}
           isImportedWeek={isImportedWeek}
