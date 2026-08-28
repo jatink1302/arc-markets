@@ -362,7 +362,7 @@ export default async function LeaguePage({
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4">
       <div className="flex w-full max-w-2xl items-center justify-between">
         <Link
           href="/leagues"
@@ -420,6 +420,6 @@ export default async function LeaguePage({
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }

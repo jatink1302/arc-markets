@@ -48,7 +48,7 @@ export default async function LeagueChatPage({
   const messages = [...league.chatMessages].reverse();
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4">
       <AutoRefresh intervalMs={5_000} />
 
       <Link
@@ -113,6 +113,6 @@ export default async function LeagueChatPage({
 
         <ChatComposer leagueId={league.id} />
       </div>
-    </main>
+    </div>
   );
 }

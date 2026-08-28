@@ -134,7 +134,7 @@ export default async function TeamSchedulePage({
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4">
       {/* SeasonView's tabs aren't URL-synced, so this always lands back on Matchup —
           known limitation, not worth the scope increase of URL-syncing the tab state. */}
       <Link
@@ -215,6 +215,6 @@ export default async function TeamSchedulePage({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
