@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "@/lib/prisma";
 import type { SleeperRosterDTO } from "@/lib/sleeper";
 import type { RosterPlayerRowData } from "@/components/matchup/roster-player-row";
 import type { StandingsRow } from "@/components/matchup/types";
@@ -45,6 +46,38 @@ export function resolveTeamLogoUrl(roster: {
 }): string | null {
   if (roster.customLogoUrl) return roster.customLogoUrl;
   return roster.avatarUrl ? `https://sleepercdn.com/avatars/thumbs/${roster.avatarUrl}` : null;
+}
+
+// A native FantasyLeagueMember has no direct DB relation to a SleeperRoster — only a loose
+// sleeperRosterId value set at conversion time (see fantasy-league-conversion.ts). Resolves
+// the real logo for each member of a converted league in one batched round trip (no logo,
+// i.e. a from-scratch native league or an unlinked member, resolves to null for everyone).
+export async function resolveNativeMemberLogoUrls(
+  members: { id: string; sleeperRosterId: number | null }[],
+  sourceSleeperLeagueId: string | null,
+): Promise<Map<string, string | null>> {
+  const result = new Map<string, string | null>();
+  if (!sourceSleeperLeagueId) return result;
+
+  const sourceLeague = await prisma.league.findUnique({ where: { sleeperLeagueId: sourceSleeperLeagueId } });
+  if (!sourceLeague) return result;
+
+  const rosterIds = members
+    .map((m) => m.sleeperRosterId)
+    .filter((id): id is number => id != null);
+  if (rosterIds.length === 0) return result;
+
+  const sleeperRosters = await prisma.sleeperRoster.findMany({
+    where: { leagueId: sourceLeague.id, sleeperRosterId: { in: rosterIds } },
+  });
+  const bySleeperRosterId = new Map(sleeperRosters.map((r) => [r.sleeperRosterId, r]));
+
+  for (const m of members) {
+    if (m.sleeperRosterId == null) continue;
+    const roster = bySleeperRosterId.get(m.sleeperRosterId);
+    if (roster) result.set(m.id, resolveTeamLogoUrl(roster));
+  }
+  return result;
 }
 
 function fptsOf(settings: SleeperRosterDTO["settings"]): number {

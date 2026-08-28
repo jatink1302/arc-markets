@@ -6,6 +6,7 @@ import { getNflState } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseWeeklyStats } from "@/lib/nflverse";
 import { computeFantasyPoints, computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
+import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { LeagueFormingView } from "./league-forming-view";
 import { DraftBoard, type DraftablePlayer } from "./draft-board";
@@ -48,12 +49,18 @@ export default async function LeaguePage({
   const me = league.members.find((m) => m.userId === authUser.id);
   if (!me) redirect("/leagues/join");
 
+  const logoUrlByMember = await resolveNativeMemberLogoUrls(
+    league.members.map((m) => ({ id: m.id, sleeperRosterId: m.sleeperRosterId })),
+    league.sourceSleeperLeagueId,
+  );
+
   const members = league.members.map((m) => ({
     id: m.id,
     userId: m.userId,
     role: m.role,
     teamName: m.teamName,
     email: m.user?.email ?? null,
+    logoUrl: logoUrlByMember.get(m.id) ?? null,
   }));
 
   const liveState = await getNflState();
@@ -132,6 +139,7 @@ export default async function LeaguePage({
       return {
         memberId,
         teamName: teamNameByMember.get(memberId) ?? "Unknown",
+        logoUrl: logoUrlByMember.get(memberId) ?? null,
         starters: lineup.starters,
         totalPoints: lineup.totalPoints,
       };

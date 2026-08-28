@@ -2,17 +2,10 @@ import Link from "next/link";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
 import type { RosterPlayerRowData } from "@/components/matchup/roster-player-row";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, formatMoney, shortSlot } from "@/lib/utils";
 import type { MatchupSide } from "@/components/matchup/types";
 
 type Status = "PREGAME" | "LIVE" | "FINAL";
-
-// Slot labels get their own small, fixed-width pill between two players' rows — long
-// ones (SUPER_FLEX) need shortening or they blow out the column on narrow screens.
-const SHORT_SLOT: Record<string, string> = { SUPER_FLEX: "SFLX" };
-function shortSlot(slot: string): string {
-  return SHORT_SLOT[slot] ?? slot;
-}
 
 const STATUS_COPY: Record<Status, string> = {
   PREGAME: "Lineups open · swap freely before kickoff",
