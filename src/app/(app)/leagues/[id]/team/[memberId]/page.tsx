@@ -6,13 +6,14 @@ import { getNflState } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
 import { computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
-import { buildStarterRows } from "@/lib/native-starters";
+import { buildStarterRows, buildRosterSlotRows } from "@/lib/native-starters";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { WeekSelect } from "../../week-select";
 import { StartersView } from "../../starters-view";
 import { BenchView } from "../../bench-view";
+import { RosterSlotSection } from "../../roster-slot-section";
 
 // Isolated from the page component body on purpose — react-hooks/purity flags a direct
 // Date.now() call inside a component's render, even a Server Component's.
@@ -183,6 +184,7 @@ export default async function TeamSchedulePage({
     previousSeasonStats,
     now: nowMs(),
   });
+  const { taxi: taxiRows, ir: irRows } = buildRosterSlotRows({ ctx, memberId, nflverseRosters });
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -232,7 +234,28 @@ export default async function TeamSchedulePage({
           isOwner={isOwner}
         />
 
-        <BenchView leagueId={id} week={selectedWeek} bench={benchRows} />
+        <BenchView
+          leagueId={id}
+          week={selectedWeek}
+          bench={benchRows}
+          taxiEnabled={ctx.rosterSettings.TAXI > 0}
+          irEnabled={ctx.rosterSettings.IR > 0}
+        />
+
+        <RosterSlotSection
+          leagueId={id}
+          title="Taxi Squad"
+          rows={taxiRows}
+          capacity={ctx.rosterSettings.TAXI}
+          canEdit={isOwner}
+        />
+        <RosterSlotSection
+          leagueId={id}
+          title="IR"
+          rows={irRows}
+          capacity={ctx.rosterSettings.IR}
+          canEdit={isOwner}
+        />
 
         <div className="rounded-lg border border-border bg-card">
           <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">

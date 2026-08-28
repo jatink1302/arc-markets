@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { totalRosterSlots, type RosterSettings } from "@/lib/fantasy-defaults";
+import { activeRosterCap, type RosterSettings } from "@/lib/fantasy-defaults";
 
 export class FreeAgencyError extends Error {}
 
@@ -41,11 +41,14 @@ export async function executeFreeAgentMove(
           }
 
           const activeCount = await tx.fantasyDraftPick.count({
-            where: { leagueId, memberId: member.id, droppedAt: null },
+            where: { leagueId, memberId: member.id, droppedAt: null, rosterSlot: "ACTIVE" },
           });
           const rosterSettings = league.rosterSettings as unknown as RosterSettings;
-          const cap = totalRosterSlots(rosterSettings);
-          const projectedCount = activeCount - (dropPick ? 1 : 0) + 1;
+          const cap = activeRosterCap(rosterSettings);
+          // dropPick may be a Taxi/IR pick, which was never counted in activeCount above —
+          // only subtract the freed slot when the drop actually vacated an active one.
+          const droppedActiveSlot = dropPick !== null && dropPick.rosterSlot === "ACTIVE";
+          const projectedCount = activeCount - (droppedActiveSlot ? 1 : 0) + 1;
           if (projectedCount > cap) {
             throw new FreeAgencyError(
               `Your roster is full (${cap} slots) — drop a player to make room.`,
