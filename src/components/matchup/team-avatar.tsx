@@ -19,7 +19,9 @@ export function TeamAvatar({
   size = "lg",
   uploadable = false,
 }: {
-  sleeperRosterId: number;
+  // null for a native-league member with no linked Sleeper roster — uploadable must be
+  // false in that case, since there's nothing to attach an uploaded logo to yet.
+  sleeperRosterId: number | null;
   name: string;
   logoUrl: string | null;
   accent: "positive" | "negative";
@@ -41,6 +43,7 @@ export function TeamAvatar({
     if (!file) return;
     const formData = new FormData();
     formData.set("file", file);
+    if (sleeperRosterId == null) return;
     startTransition(async () => {
       const result = await uploadTeamLogo(sleeperRosterId, formData);
       if (!result.success) {
@@ -73,7 +76,7 @@ export function TeamAvatar({
           <span className={accentClasses.text}>{letter}</span>
         )}
       </div>
-      {uploadable && (
+      {uploadable && sleeperRosterId != null && (
         <>
           <button
             type="button"

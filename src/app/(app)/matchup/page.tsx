@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState, getLeagueRosters, getLeagueStarterSlots, getMatchups } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseWeeklyStats, normalizePlayerName } from "@/lib/nflverse";
-import { buildRosterRows, computeStandings } from "@/lib/roster";
+import { buildRosterRows, computeStandings, resolveTeamLogoUrl } from "@/lib/roster";
 import { NoLeagueCard } from "@/components/no-league-card";
 import { MatchupTabs } from "@/components/matchup/matchup-tabs";
 import { MatchupView } from "@/components/matchup/matchup-view";
@@ -53,6 +53,13 @@ export default async function MatchupPage({
   // the same season is a cache hit, not a duplicate network call.
   const nflverseWeeklyStats = await getNflverseWeeklyStats(state.previous_season);
 
+  // Sleeper's state.week is a raw week counter that resets every phase — during
+  // preseason it's the preseason week number (currently 3), not a fantasy regular-season
+  // week, even though it's the same field the rest of this page uses for real regular-
+  // season weeks once the season actually starts. Bare "Week 3" during preseason reads as
+  // the regular season already being three weeks in, which it isn't.
+  const isPreseason = state.season_type === "pre";
+
   const dbRosterBySleeperId = new Map(dbRosters.map((r) => [r.sleeperRosterId, r]));
   const dbRosterById = new Map(dbRosters.map((r) => [r.id, r]));
   const playerBySleeperId = new Map(dbPlayers.map((p) => [p.sleeperPlayerId, p]));
@@ -66,11 +73,7 @@ export default async function MatchupPage({
   }
   function rosterLogoUrl(rosterId: number): string | null {
     const r = dbRosterBySleeperId.get(rosterId);
-    if (r?.customLogoUrl) return r.customLogoUrl;
-    // avatarUrl is a raw Sleeper avatar-hash ID (from owner.avatar in the Sleeper API),
-    // not a full URL — never actually rendered anywhere before this. Real CDN convention:
-    // https://sleepercdn.com/avatars/thumbs/{hash}.
-    return r?.avatarUrl ? `https://sleepercdn.com/avatars/thumbs/${r.avatarUrl}` : null;
+    return r ? resolveTeamLogoUrl(r) : null;
   }
 
   function buildRows(
@@ -271,7 +274,9 @@ export default async function MatchupPage({
         <h1 className="font-heading text-2xl uppercase tracking-wide text-foreground">
           {league.name}
         </h1>
-        <p className="text-sm text-muted-foreground">Week {state.week}</p>
+        <p className="text-sm text-muted-foreground">
+          {isPreseason ? `Preseason · Week ${state.week}` : `Week ${state.week}`}
+        </p>
       </div>
       <MatchupTabs
         defaultTab={defaultTab}
@@ -281,6 +286,8 @@ export default async function MatchupPage({
         teamSlot={
           <TeamView
             teamName={myTeamName}
+            sleeperRosterId={myRosterDto?.roster_id ?? null}
+            logoUrl={myRosterDto ? rosterLogoUrl(myRosterDto.roster_id) : null}
             starters={myStarters}
             bench={myBench}
             isOwnTeam
@@ -289,7 +296,9 @@ export default async function MatchupPage({
             totalTeams={standings.length}
           />
         }
-        leagueSlot={<LeagueView week={state.week} standings={standings} pairings={pairings} />}
+        leagueSlot={
+          <LeagueView week={state.week} isPreseason={isPreseason} standings={standings} pairings={pairings} />
+        }
         leadersSlot={<LeadersView players={allPlayers} previousSeason={state.previous_season} />}
       />
     </div>

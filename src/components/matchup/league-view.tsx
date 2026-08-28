@@ -5,10 +5,12 @@ import type { StandingsRow, WeekMatchupPairing } from "@/components/matchup/type
 
 export function LeagueView({
   week,
+  isPreseason = false,
   standings,
   pairings,
 }: {
   week: number;
+  isPreseason?: boolean;
   standings: StandingsRow[];
   pairings: WeekMatchupPairing[];
 }) {
@@ -44,7 +46,7 @@ export function LeagueView({
 
       <div className="rounded-lg border border-border bg-card">
         <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">
-          Week {week} matchups
+          {isPreseason ? `Preseason · Week ${week} matchups` : `Week ${week} matchups`}
         </h3>
         {pairings.length === 0 ? (
           <div className="p-4">

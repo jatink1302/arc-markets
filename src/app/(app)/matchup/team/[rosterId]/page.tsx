@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLeagueRosters, getLeagueStarterSlots } from "@/lib/sleeper";
-import { buildRosterRows, computeStandings } from "@/lib/roster";
+import { buildRosterRows, computeStandings, resolveTeamLogoUrl } from "@/lib/roster";
 import { NoLeagueCard } from "@/components/no-league-card";
 import { TeamView } from "@/components/matchup/team-view";
 
@@ -56,6 +56,8 @@ export default async function TeamPage({
   }
 
   const teamName = rosterDisplayName(targetRosterDto.roster_id);
+  const targetDbRoster = dbRosterBySleeperId.get(targetRosterDto.roster_id);
+  const logoUrl = targetDbRoster ? resolveTeamLogoUrl(targetDbRoster) : null;
   const starterSet = new Set(targetRosterDto.starters ?? []);
   const starters = buildRosterRows(
     targetRosterDto.starters ?? [],
@@ -79,6 +81,8 @@ export default async function TeamPage({
     <div className="mx-auto w-full max-w-3xl">
       <TeamView
         teamName={teamName}
+        sleeperRosterId={targetRosterDto.roster_id}
+        logoUrl={logoUrl}
         starters={starters}
         bench={bench}
         isOwnTeam={targetRosterDto.owner_id === user.sleeperUserId}

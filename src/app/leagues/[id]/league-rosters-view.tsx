@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { ProposeTradeCard } from "./propose-trade-card";
 import { DropPlayerButton } from "./drop-player-button";
 import type { DraftMember, DraftPick } from "./draft-board";
@@ -45,8 +46,15 @@ export function LeagueRostersView({
           return (
             <Card key={member.id} className="border-border bg-card">
               <CardHeader>
-                <CardTitle className="font-heading text-sm uppercase tracking-wide text-foreground">
-                  <Link href={`/leagues/${leagueId}/team/${member.id}`} className="hover:opacity-80">
+                <CardTitle className="flex items-center gap-3 font-heading text-sm uppercase tracking-wide text-foreground">
+                  <TeamAvatar
+                    sleeperRosterId={null}
+                    name={member.teamName ?? member.email ?? "Unclaimed Team"}
+                    logoUrl={member.logoUrl}
+                    accent="positive"
+                    size="sm"
+                  />
+                  <Link href={`/leagues/${leagueId}/team/${member.id}`} className="truncate hover:opacity-80">
                     {member.teamName ?? member.email ?? "Unclaimed Team"}
                   </Link>
                 </CardTitle>

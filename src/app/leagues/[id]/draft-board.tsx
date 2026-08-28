@@ -17,6 +17,9 @@ export type DraftMember = {
   userId: string | null;
   teamName: string | null;
   email: string | null;
+  // Resolved via resolveNativeMemberLogoUrls (@/lib/roster) — only set for a member of a
+  // converted league whose linked Sleeper roster has a logo; null otherwise.
+  logoUrl: string | null;
 };
 
 export type DraftPick = {
