@@ -6,7 +6,7 @@ import { getNflState } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
 import { computeFantasyPoints, computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
-import { buildStarterRows } from "@/lib/native-starters";
+import { buildStarterRows, buildRosterSlotRows } from "@/lib/native-starters";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { LeagueFormingView } from "./league-forming-view";
@@ -22,7 +22,9 @@ import { ActivityView, type ActivityEntry } from "./activity-view";
 import { WeekSelect } from "./week-select";
 import { StartersView } from "./starters-view";
 import { BenchView } from "./bench-view";
-import { totalRosterSlots, type RosterSettings, type ScoringSettings } from "@/lib/fantasy-defaults";
+import { RosterSlotSection } from "./roster-slot-section";
+import { TaxiIrSettingsView } from "./taxi-ir-settings-view";
+import { activeRosterCap, type RosterSettings, type ScoringSettings } from "@/lib/fantasy-defaults";
 
 const DRAFT_ELIGIBLE_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
 
@@ -167,6 +169,11 @@ export default async function LeaguePage({
       previousSeasonStats,
       now: nowMs(),
     });
+    const { taxi: myTaxiRows, ir: myIrRows } = buildRosterSlotRows({
+      ctx,
+      memberId: me.id,
+      nflverseRosters,
+    });
     const myTeamSlot = (
       <div className="flex flex-col gap-4">
         <WeekSelect basePath={`/leagues/${league.id}`} week={selectedWeek} seasonWeeks={SEASON_WEEKS} />
@@ -177,7 +184,27 @@ export default async function LeaguePage({
           isImportedWeek={myWeekIsImported}
           isOwner
         />
-        <BenchView leagueId={league.id} week={selectedWeek} bench={myBenchRows} />
+        <BenchView
+          leagueId={league.id}
+          week={selectedWeek}
+          bench={myBenchRows}
+          taxiEnabled={ctx.rosterSettings.TAXI > 0}
+          irEnabled={ctx.rosterSettings.IR > 0}
+        />
+        <RosterSlotSection
+          leagueId={league.id}
+          title="Taxi Squad"
+          rows={myTaxiRows}
+          capacity={ctx.rosterSettings.TAXI}
+          canEdit
+        />
+        <RosterSlotSection
+          leagueId={league.id}
+          title="IR"
+          rows={myIrRows}
+          capacity={ctx.rosterSettings.IR}
+          canEdit
+        />
       </div>
     );
 
@@ -258,20 +285,25 @@ export default async function LeaguePage({
       }))
       .sort((a, b) => b.seasonPoints - a.seasonPoints);
 
+    // Stays all-slot-inclusive (Active/Taxi/IR) — also feeds the free-agent exclusion set,
+    // trade pickers, and Rosters display below, none of which should drop Taxi/IR players.
     const myActivePicks = ctx.picksByMember.get(me.id) ?? [];
-    const rosterCap = totalRosterSlots(ctx.rosterSettings);
+    const rosterCap = activeRosterCap(ctx.rosterSettings);
+    const myActiveOnlyPicks = myActivePicks.filter((p) => p.rosterSlot === "ACTIVE");
 
     const freeAgentsSlot = (
       <FreeAgentsView
         leagueId={league.id}
         availablePlayers={freeAgents}
-        myPicks={myActivePicks.map((p) => ({
+        // Taxi/IR players excluded here — dropping one wouldn't free active-roster room, so
+        // offering them in the "drop to make room" picker would just be a confusing dead end.
+        myPicks={myActiveOnlyPicks.map((p) => ({
           id: p.id,
           playerName: p.playerName,
           playerPosition: p.playerPosition,
         }))}
         rosterCap={rosterCap}
-        myActivePickCount={myActivePicks.length}
+        myActivePickCount={myActiveOnlyPicks.length}
       />
     );
 
@@ -396,11 +428,21 @@ export default async function LeaguePage({
             myMemberId={me.id}
             members={members}
             picks={ctx.activePicks}
+            rosterSettings={ctx.rosterSettings}
           />
         }
         freeAgentsSlot={freeAgentsSlot}
         tradesSlot={tradesSlot}
         pendingTradesCount={pendingTradesCount}
+        settingsSlot={
+          me.role === "COMMISSIONER" ? (
+            <TaxiIrSettingsView
+              leagueId={league.id}
+              taxi={ctx.rosterSettings.TAXI}
+              ir={ctx.rosterSettings.IR}
+            />
+          ) : undefined
+        }
       />
     );
 

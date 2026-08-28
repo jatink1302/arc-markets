@@ -11,6 +11,8 @@ export type RosterSettings = {
   DEF: number;
   K: number;
   BENCH: number;
+  TAXI: number;
+  IR: number;
 };
 
 export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
@@ -23,10 +25,21 @@ export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
   DEF: 1,
   K: 1,
   BENCH: 6,
+  TAXI: 0,
+  IR: 0,
 };
 
 export function totalRosterSlots(settings: RosterSettings): number {
   return Object.values(settings).reduce((sum, n) => sum + n, 0);
+}
+
+// Taxi/IR sit outside the active roster — a player there doesn't count against the slots
+// a member needs to fill every week, and doesn't take a spot from a new add/draft pick.
+// TAXI/IR fall back to 0 (not just here — everywhere this module reads them) because a
+// league created before this feature existed has a stored rosterSettings JSON blob that's
+// genuinely missing those keys, not zeroed — same precedent as SUPERFLEX before it.
+export function activeRosterCap(settings: RosterSettings): number {
+  return totalRosterSlots(settings) - (settings.TAXI ?? 0) - (settings.IR ?? 0);
 }
 
 export type ScoringSettings = {
@@ -63,6 +76,8 @@ export const ROSTER_SLOT_LABELS: Record<keyof RosterSettings, string> = {
   DEF: "Defense",
   K: "Kicker",
   BENCH: "Bench",
+  TAXI: "Taxi Squad",
+  IR: "Injured Reserve",
 };
 
 export const SCORING_FIELD_LABELS: Record<keyof ScoringSettings, string> = {

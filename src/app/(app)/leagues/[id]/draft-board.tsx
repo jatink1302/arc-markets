@@ -33,6 +33,7 @@ export type DraftPick = {
   playerName: string;
   playerTeam: string | null;
   playerPosition: string | null;
+  rosterSlot: "ACTIVE" | "TAXI" | "IR";
 };
 
 export type DraftablePlayer = {

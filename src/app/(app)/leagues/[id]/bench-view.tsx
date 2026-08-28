@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PlayerAvatar } from "@/components/player-avatar";
 import { cn, shortSlot } from "@/lib/utils";
 import { setWeeklyStarter } from "@/app/actions/fantasy-lineup";
+import { setRosterSlot } from "@/app/actions/fantasy-roster";
 
 export type StarterOption = {
   pickId: string;
@@ -31,16 +32,24 @@ export type BenchRow = {
   // owner, this player's own game has already kicked off, or the week is final, which is
   // what actually gates the tap-to-start UI.
   starterOptions: StarterOption[];
+  // Whether Taxi/IR moves are offered for this row at all — isOwner && !isImportedWeek,
+  // same as starterOptions' gate but NOT locked-dependent (a roster-slot move has no
+  // kickoff lock, unlike a lineup swap — see roster-slot.ts).
+  canMoveSlot: boolean;
 };
 
 export function BenchView({
   leagueId,
   week,
   bench,
+  taxiEnabled,
+  irEnabled,
 }: {
   leagueId: string;
   week: number;
   bench: BenchRow[];
+  taxiEnabled: boolean;
+  irEnabled: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -48,6 +57,7 @@ export function BenchView({
 
   const openRow = bench.find((b) => b.pickId === openPickId) ?? null;
   const starterOptions = openRow?.starterOptions ?? [];
+  const showMoveOptions = openRow?.canMoveSlot && (taxiEnabled || irEnabled);
 
   function handleSwap(starterPickId: string) {
     if (!openRow) return;
@@ -59,6 +69,20 @@ export function BenchView({
       }
       setOpenPickId(null);
       toast.success("Lineup updated.");
+      router.refresh();
+    });
+  }
+
+  function handleMoveSlot(targetSlot: "TAXI" | "IR") {
+    if (!openRow) return;
+    startTransition(async () => {
+      const result = await setRosterSlot(leagueId, openRow.pickId, targetSlot);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setOpenPickId(null);
+      toast.success(`Moved to ${targetSlot === "TAXI" ? "Taxi Squad" : "IR"}.`);
       router.refresh();
     });
   }
@@ -75,7 +99,9 @@ export function BenchView({
           <p className="p-4 text-sm text-muted-foreground">No bench players.</p>
         ) : (
           bench.map((row) => {
-            const canSwap = row.starterOptions.length > 0;
+            const canSwap =
+              row.starterOptions.length > 0 ||
+              (row.canMoveSlot && (taxiEnabled || irEnabled));
             return (
               <div key={row.pickId} className="flex items-center gap-3 px-4 py-2.5">
                 <button
@@ -121,13 +147,11 @@ export function BenchView({
       <Dialog open={openRow !== null} onOpenChange={(open) => !open && setOpenPickId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start {openRow?.playerName ?? ""}</DialogTitle>
+            <DialogTitle>Move {openRow?.playerName ?? ""}</DialogTitle>
           </DialogHeader>
           <div className="-mx-4 flex flex-col divide-y divide-border/60">
-            {starterOptions.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                No eligible starting slot.
-              </p>
+            {starterOptions.length === 0 && !showMoveOptions ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">No moves available.</p>
             ) : (
               starterOptions.map((s) => (
                 <button
@@ -155,6 +179,26 @@ export function BenchView({
                   </div>
                 </button>
               ))
+            )}
+            {showMoveOptions && taxiEnabled && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleMoveSlot("TAXI")}
+                className="px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-secondary disabled:opacity-60"
+              >
+                Move to Taxi Squad
+              </button>
+            )}
+            {showMoveOptions && irEnabled && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleMoveSlot("IR")}
+                className="px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-secondary disabled:opacity-60"
+              >
+                Move to IR
+              </button>
             )}
           </div>
         </DialogContent>

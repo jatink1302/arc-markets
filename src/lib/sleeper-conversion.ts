@@ -53,13 +53,6 @@ export function mapSleeperRosterPositions(
   const limitations: string[] = [];
   const count = (label: string) => positions.filter((p) => p === label).length;
 
-  const irTaxiCount = count("IR") + count("TAXI");
-  if (irTaxiCount > 0) {
-    limitations.push(
-      `This league has ${irTaxiCount} IR/Taxi slot(s) — Summit has no separate IR/Taxi concept, so those are folded into bench slots.`,
-    );
-  }
-
   const roster: RosterSettings = {
     QB: count("QB"),
     RB: count("RB"),
@@ -69,8 +62,18 @@ export function mapSleeperRosterPositions(
     SUPERFLEX: count("SUPER_FLEX"),
     DEF: count("DEF"),
     K: count("K"),
-    BENCH: count("BN") + irTaxiCount,
+    BENCH: count("BN"),
+    TAXI: count("TAXI"),
+    IR: count("IR"),
   };
+
+  if (roster.TAXI > 0 || roster.IR > 0) {
+    limitations.push(
+      "Taxi Squad and IR slot counts carried over, but Sleeper doesn't expose which players " +
+        "are on them today — every imported player starts on your active roster. Move them to " +
+        "Taxi/IR from My Team after converting.",
+    );
+  }
 
   if (roster.DEF > 0) {
     limitations.push(

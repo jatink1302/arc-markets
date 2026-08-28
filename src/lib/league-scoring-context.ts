@@ -15,6 +15,7 @@ type ScoringContextPick = {
   playerTeam: string | null;
   playerPosition: string | null;
   droppedAt: Date | null;
+  rosterSlot: "ACTIVE" | "TAXI" | "IR";
 };
 
 type ScoringContextMatchup = {
@@ -64,7 +65,27 @@ export async function buildSeasonScoringContext(
     picksByMember.set(p.memberId, list);
   }
 
-  const rosterSettings = league.rosterSettings as unknown as RosterSettings;
+  // A narrower view of picksByMember for lineup purposes only — Taxi/IR picks stay in
+  // activePicks/picksByMember (roster display, trades, free-agent exclusion all still need
+  // them) but can never be a starter or bench-swap candidate, matching a real Sleeper league.
+  const starterEligibleByMember = new Map<string, ScoringContextPick[]>();
+  for (const p of activePicks) {
+    if (p.rosterSlot !== "ACTIVE") continue;
+    const list = starterEligibleByMember.get(p.memberId) ?? [];
+    list.push(p);
+    starterEligibleByMember.set(p.memberId, list);
+  }
+
+  // TAXI/IR default to 0 here (not just at the read site) because a league created before
+  // this feature existed has a stored rosterSettings JSON blob genuinely missing those keys,
+  // not zeroed — same precedent as SUPERFLEX before it. Normalizing once here means every
+  // consumer of ctx.rosterSettings downstream can read .TAXI/.IR directly.
+  const rawRosterSettings = league.rosterSettings as unknown as RosterSettings;
+  const rosterSettings: RosterSettings = {
+    ...rawRosterSettings,
+    TAXI: rawRosterSettings.TAXI ?? 0,
+    IR: rawRosterSettings.IR ?? 0,
+  };
   const scoringSettings = league.scoringSettings as unknown as ScoringSettings;
 
   const weekStats = hasStarted
@@ -96,7 +117,7 @@ export async function buildSeasonScoringContext(
   }
 
   function lineupFor(memberId: string, week: number): WeeklyLineup {
-    const picks = picksByMember.get(memberId) ?? [];
+    const picks = starterEligibleByMember.get(memberId) ?? [];
     return computeWeeklyLineup(
       picks.map((p) => ({
         id: p.id,

@@ -17,12 +17,15 @@ export function RostersSectionView({
   freeAgentsSlot,
   tradesSlot,
   pendingTradesCount,
+  settingsSlot,
 }: {
   myTeamSlot: React.ReactNode;
   rostersSlot: React.ReactNode;
   freeAgentsSlot: React.ReactNode;
   tradesSlot: React.ReactNode;
   pendingTradesCount: number;
+  // Only present for the commissioner — see leagues/[id]/page.tsx.
+  settingsSlot?: React.ReactNode;
 }) {
   return (
     <Tabs defaultValue="myTeam" className="w-full">
@@ -40,6 +43,11 @@ export function RostersSectionView({
           Trades
           <CountBadge count={pendingTradesCount} />
         </TabsTrigger>
+        {settingsSlot && (
+          <TabsTrigger value="settings" className="shrink-0 grow-0">
+            Settings
+          </TabsTrigger>
+        )}
       </TabsList>
       <TabsContent value="myTeam" className="mt-4">
         {myTeamSlot}
@@ -53,6 +61,11 @@ export function RostersSectionView({
       <TabsContent value="trades" className="mt-4">
         {tradesSlot}
       </TabsContent>
+      {settingsSlot && (
+        <TabsContent value="settings" className="mt-4">
+          {settingsSlot}
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

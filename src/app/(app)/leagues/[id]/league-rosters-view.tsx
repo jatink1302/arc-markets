@@ -3,19 +3,25 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { ProposeTradeCard } from "./propose-trade-card";
 import { DropPlayerButton } from "./drop-player-button";
+import { RosterSlotSelect } from "./roster-slot-select";
 import type { DraftMember, DraftPick } from "./draft-board";
+import type { RosterSettings } from "@/lib/fantasy-defaults";
 
 export function LeagueRostersView({
   leagueId,
   myMemberId,
   members,
   picks,
+  rosterSettings,
 }: {
   leagueId: string;
   myMemberId: string | null;
   members: DraftMember[];
   picks: DraftPick[];
+  rosterSettings: RosterSettings;
 }) {
+  const taxiEnabled = rosterSettings.TAXI > 0;
+  const irEnabled = rosterSettings.IR > 0;
   const picksByMember = new Map<string, DraftPick[]>();
   for (const pick of picks) {
     const list = picksByMember.get(pick.memberId) ?? [];
@@ -73,6 +79,21 @@ export function LeagueRostersView({
                         <span className="font-mono text-xs text-muted-foreground">
                           {pick.playerTeam ?? "FA"} · {pick.playerPosition}
                         </span>
+                        {isMine ? (
+                          <RosterSlotSelect
+                            leagueId={leagueId}
+                            pickId={pick.id}
+                            rosterSlot={pick.rosterSlot}
+                            taxiEnabled={taxiEnabled}
+                            irEnabled={irEnabled}
+                          />
+                        ) : (
+                          pick.rosterSlot !== "ACTIVE" && (
+                            <span className="rounded-full border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                              {pick.rosterSlot === "TAXI" ? "Taxi" : "IR"}
+                            </span>
+                          )
+                        )}
                         {isMine && (
                           <DropPlayerButton
                             leagueId={leagueId}

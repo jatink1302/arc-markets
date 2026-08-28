@@ -275,6 +275,16 @@ enum RosterEntrySource {
   IMPORTED // carried over from a real Sleeper roster at league-conversion time
 }
 
+// A pick's roster classification. TAXI/IR are exempt from the active roster cap
+// (activeRosterCap in fantasy-defaults.ts) and from lineup eligibility (see
+// league-scoring-context.ts's starterEligibleByMember) but stay fully visible in
+// Rosters, trades, and the free-agent-exclusion set — same as a real Sleeper league.
+enum FantasyRosterSlot {
+  ACTIVE
+  TAXI
+  IR
+}
+
 model FantasyDraftPick {
   id             String              @id @default(cuid())
   leagueId       String
@@ -284,6 +294,9 @@ model FantasyDraftPick {
   pickNo         Int // 1-indexed, overall (continues past the draft for free-agent adds)
   round          Int? // null for free-agent adds — only draft picks have a round
   source         RosterEntrySource   @default(DRAFT)
+  // Every existing row predates this feature and was implicitly active — ACTIVE is the
+  // correct default, not a placeholder needing backfill.
+  rosterSlot     FantasyRosterSlot   @default(ACTIVE)
   nflverseId     String // which real player — same id system as Player.nflverseId
   playerName     String // denormalized so pick history never needs a join
   playerTeam     String?

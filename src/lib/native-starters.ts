@@ -12,6 +12,7 @@ import type {
 } from "@/lib/nflverse";
 import type { StarterRow, BenchOption } from "@/app/(app)/leagues/[id]/starters-view";
 import type { BenchRow } from "@/app/(app)/leagues/[id]/bench-view";
+import type { RosterSlotRow } from "@/app/(app)/leagues/[id]/roster-slot-section";
 
 type ScoringContext = Awaited<ReturnType<typeof buildSeasonScoringContext>>;
 
@@ -143,8 +144,37 @@ export function buildStarterRows({
                 projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
               }))
           : [],
+      canMoveSlot: canEditLineup,
     };
   });
 
   return { starters, bench };
+}
+
+// Taxi Squad / IR are outside computeWeeklyLineup entirely (never starters, never bench) —
+// built straight from this member's roster-slot-tagged picks, not the lineup computation.
+export function buildRosterSlotRows({
+  ctx,
+  memberId,
+  nflverseRosters,
+}: {
+  ctx: ScoringContext;
+  memberId: string;
+  nflverseRosters: NflverseRosterIndex;
+}): { taxi: RosterSlotRow[]; ir: RosterSlotRow[] } {
+  const picks = ctx.picksByMember.get(memberId) ?? [];
+
+  function rowsFor(slot: "TAXI" | "IR"): RosterSlotRow[] {
+    return picks
+      .filter((p) => p.rosterSlot === slot)
+      .map((p) => ({
+        pickId: p.id,
+        playerName: p.playerName,
+        playerTeam: p.playerTeam,
+        playerPosition: p.playerPosition,
+        headshotUrl: nflverseRosters.byGsisId.get(p.nflverseId)?.headshotUrl ?? null,
+      }));
+  }
+
+  return { taxi: rowsFor("TAXI"), ir: rowsFor("IR") };
 }
