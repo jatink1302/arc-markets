@@ -85,7 +85,7 @@ export function SeasonMatchupView({
 
   return (
     <div className="flex flex-col gap-4">
-      <WeekSelect leagueId={leagueId} week={week} seasonWeeks={seasonWeeks} />
+      <WeekSelect basePath={`/leagues/${leagueId}`} week={week} seasonWeeks={seasonWeeks} />
 
       {!hasStarted ? (
         <EmptyStateCard

@@ -3,11 +3,25 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState } from "@/lib/sleeper";
-import { computeSeasonStandings } from "@/lib/fantasy-scoring";
+import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
+import {
+  computeSeasonStandings,
+  projectedPointsForPlayer,
+  FLEX_ELIGIBLE,
+  SUPERFLEX_ELIGIBLE,
+} from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
+import { WeekSelect } from "../../week-select";
+import { StartersView, type StarterRow, type BenchOption } from "../../starters-view";
+
+// Isolated from the page component body on purpose — react-hooks/purity flags a direct
+// Date.now() call inside a component's render, even a Server Component's.
+function nowMs(): number {
+  return Date.now();
+}
 
 type TeamScheduleWeekRow = {
   week: number;
@@ -20,10 +34,13 @@ type TeamScheduleWeekRow = {
 
 export default async function TeamSchedulePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; memberId: string }>;
+  searchParams: Promise<{ week?: string }>;
 }) {
   const { id, memberId } = await params;
+  const { week: weekParam } = await searchParams;
   const authUser = await requireUser();
 
   const league = await prisma.fantasyLeague.findUnique({
@@ -35,6 +52,7 @@ export default async function TeamSchedulePage({
       },
       picks: { orderBy: { pickNo: "asc" } },
       matchups: { orderBy: { week: "asc" } },
+      weeklyStarters: true,
     },
   });
   if (!league) notFound();
@@ -48,6 +66,7 @@ export default async function TeamSchedulePage({
 
   const targetMember = league.members.find((m) => m.id === memberId);
   if (!targetMember) notFound();
+  const isOwner = targetMember.userId === authUser.id;
 
   const teamNameByMember = new Map(
     league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
@@ -71,9 +90,18 @@ export default async function TeamSchedulePage({
         importedPointsA: m.importedPointsA !== null ? Number(m.importedPointsA) : null,
         importedPointsB: m.importedPointsB !== null ? Number(m.importedPointsB) : null,
       })),
+      weeklyStarters: league.weeklyStarters.map((w) => ({
+        memberId: w.memberId,
+        week: w.week,
+        pickId: w.pickId,
+      })),
     },
     liveState,
   );
+
+  const selectedWeek = weekParam
+    ? Math.min(Math.max(Number(weekParam) || 1, 1), SEASON_WEEKS)
+    : ctx.clampedCurrentWeek;
 
   const record = computeSeasonStandings(
     league.members.map((m) => m.id),
@@ -133,6 +161,84 @@ export default async function TeamSchedulePage({
     });
   }
 
+  const [nflverseRosters, schedule, previousSeasonStats] = await Promise.all([
+    getNflverseRosters(league.season),
+    getNflverseSchedule(league.season),
+    getNflverseWeeklyStats(liveState.previous_season),
+  ]);
+
+  const importedMatchup = league.matchups.find(
+    (m) => m.week === selectedWeek && (m.memberAId === memberId || m.memberBId === memberId),
+  );
+  const isImportedWeek = importedMatchup
+    ? (importedMatchup.memberAId === memberId
+        ? importedMatchup.importedPointsA
+        : importedMatchup.importedPointsB) !== null
+    : false;
+  const canEditLineup = isOwner && !isImportedWeek;
+  const now = nowMs();
+
+  function scheduleLabelFor(team: string | null): { label: string; locked: boolean } {
+    if (!team) return { label: "FA", locked: false };
+    const entry = schedule.get(team)?.get(selectedWeek);
+    if (!entry) return { label: "Bye", locked: false };
+    const weekday = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+    }).format(entry.kickoffAt);
+    const time = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(entry.kickoffAt);
+    return {
+      label: `${weekday} ${time} ${entry.isHome ? "vs" : "@"} ${entry.opponent}`,
+      locked: entry.kickoffAt.getTime() <= now,
+    };
+  }
+
+  function isEligibleForSlot(position: string | null, slot: string): boolean {
+    if (!position) return false;
+    if (slot === "FLEX") return FLEX_ELIGIBLE.has(position);
+    if (slot === "SUPERFLEX") return SUPERFLEX_ELIGIBLE.has(position);
+    return position === slot;
+  }
+
+  function benchOptionFor(pick: (typeof lineup.bench)[number]): BenchOption {
+    return {
+      pickId: pick.id,
+      playerName: pick.playerName,
+      playerTeam: pick.playerTeam,
+      playerPosition: pick.playerPosition,
+      headshotUrl: nflverseRosters.byGsisId.get(pick.nflverseId)?.headshotUrl ?? null,
+      projectedPoints: projectedPointsForPlayer(pick.nflverseId, previousSeasonStats),
+    };
+  }
+
+  const lineup = ctx.lineupFor(memberId, selectedWeek);
+  const starterRows: StarterRow[] = lineup.starters.map((s) => {
+    const { label, locked } = scheduleLabelFor(s.playerTeam);
+    const hasStats = ctx.weekStats.get(s.nflverseId)?.some((l) => l.week === selectedWeek) ?? false;
+    return {
+      pickId: s.id,
+      slot: s.slot,
+      playerName: s.playerName,
+      playerTeam: s.playerTeam,
+      playerPosition: s.playerPosition,
+      headshotUrl: nflverseRosters.byGsisId.get(s.nflverseId)?.headshotUrl ?? null,
+      scheduleLabel: label,
+      projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
+      points: hasStats ? s.points : null,
+      locked,
+      benchOptions:
+        canEditLineup && !locked
+          ? lineup.bench
+              .filter((b) => isEligibleForSlot(b.playerPosition, s.slot) && !scheduleLabelFor(b.playerTeam).locked)
+              .map(benchOptionFor)
+          : [],
+    };
+  });
+
   return (
     <div className="flex flex-col items-center gap-4">
       {/* SeasonView's tabs aren't URL-synced, so this always lands back on Matchup —
@@ -166,6 +272,20 @@ export default async function TeamSchedulePage({
             )}
           </div>
         </div>
+
+        <WeekSelect
+          basePath={`/leagues/${id}/team/${memberId}`}
+          week={selectedWeek}
+          seasonWeeks={SEASON_WEEKS}
+        />
+
+        <StartersView
+          leagueId={id}
+          memberId={memberId}
+          week={selectedWeek}
+          starters={starterRows}
+          isImportedWeek={isImportedWeek}
+        />
 
         <div className="rounded-lg border border-border bg-card">
           <h3 className="border-b border-border px-4 py-2.5 font-heading text-xs uppercase tracking-wide text-muted-foreground">

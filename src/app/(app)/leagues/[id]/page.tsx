@@ -42,6 +42,7 @@ export default async function LeaguePage({
       },
       picks: { orderBy: { pickNo: "asc" } },
       matchups: { orderBy: { week: "asc" } },
+      weeklyStarters: true,
     },
   });
   if (!league) notFound();
@@ -119,6 +120,11 @@ export default async function LeaguePage({
             memberBId: m.memberBId,
             importedPointsA: m.importedPointsA !== null ? Number(m.importedPointsA) : null,
             importedPointsB: m.importedPointsB !== null ? Number(m.importedPointsB) : null,
+          })),
+          weeklyStarters: league.weeklyStarters.map((w) => ({
+            memberId: w.memberId,
+            week: w.week,
+            pickId: w.pickId,
           })),
         },
         liveState,

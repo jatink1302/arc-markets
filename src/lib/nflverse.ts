@@ -143,6 +143,73 @@ export type NflverseRawWeekStat = {
   fumblesLost: number;
 };
 
+// nflverse's schedule `gametime` is a local Eastern wall-clock time (not UTC), and Eastern
+// flips between EDT (-04:00) and EST (-05:00) around the first Sunday of November — a
+// hardcoded offset would be off by an hour for roughly half the season. Converts by treating
+// the given Y-M-D/H:M as if it were UTC, reading what offset America/New_York actually has
+// at that approximate instant (safe: the offset lookup only needs to land on the right side
+// of the DST transition date, which a same-day few-hour error never crosses), then correcting.
+function parseEasternKickoff(dateStr: string, timeStr: string): Date | null {
+  const [y, m, d] = (dateStr ?? "").split("-").map(Number);
+  const [hh, mm] = (timeStr ?? "").split(":").map(Number);
+  if (!y || !m || !d || !Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+
+  const naiveUtc = new Date(Date.UTC(y, m - 1, d, hh, mm));
+  const offsetParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    timeZoneName: "shortOffset",
+  }).formatToParts(naiveUtc);
+  const offsetLabel = offsetParts.find((p) => p.type === "timeZoneName")?.value ?? "GMT-5";
+  const offsetHours = Number(offsetLabel.replace("GMT", "")) || -5;
+
+  return new Date(naiveUtc.getTime() - offsetHours * 60 * 60_000);
+}
+
+export type NflverseScheduleEntry = { opponent: string; isHome: boolean; kickoffAt: Date };
+
+// games.csv is unversioned and covers every season in one ~2MB file, unlike the per-season
+// URLs above — fetch/parse it once regardless of how many seasons get requested, then filter
+// per season from the cached rows instead of re-downloading.
+let scheduleRowsPromise: Promise<Record<string, string>[]> | null = null;
+function getScheduleRows(): Promise<Record<string, string>[]> {
+  if (!scheduleRowsPromise) {
+    scheduleRowsPromise = fetchCsv(`${RELEASES_BASE}/schedules/games.csv`);
+  }
+  return scheduleRowsPromise;
+}
+
+const scheduleCache = new Map<string, Promise<Map<string, Map<number, NflverseScheduleEntry>>>>();
+
+export async function getNflverseSchedule(
+  season: string,
+): Promise<Map<string, Map<number, NflverseScheduleEntry>>> {
+  const cached = scheduleCache.get(season);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const rows = await getScheduleRows();
+    const byTeamWeek = new Map<string, Map<number, NflverseScheduleEntry>>();
+    for (const row of rows) {
+      if (row.season !== season || row.game_type !== "REG") continue;
+      const week = Number(row.week);
+      const kickoffAt = parseEasternKickoff(row.gameday, row.gametime);
+      if (!Number.isFinite(week) || !kickoffAt || !row.home_team || !row.away_team) continue;
+
+      const set = (team: string, opponent: string, isHome: boolean) => {
+        const weekMap = byTeamWeek.get(team) ?? new Map<number, NflverseScheduleEntry>();
+        weekMap.set(week, { opponent, isHome, kickoffAt });
+        byTeamWeek.set(team, weekMap);
+      };
+      set(row.home_team, row.away_team, true);
+      set(row.away_team, row.home_team, false);
+    }
+    return byTeamWeek;
+  })();
+
+  scheduleCache.set(season, promise);
+  return promise;
+}
+
 const rawWeeklyStatsCache = new Map<string, Promise<Map<string, NflverseRawWeekStat[]>>>();
 
 export async function getNflverseRawWeeklyStats(

@@ -232,11 +232,12 @@ model FantasyLeague {
   sourceSleeperLeagueId String?             @unique
   convertedAt           DateTime?
 
-  members      FantasyLeagueMember[]
-  picks        FantasyDraftPick[]
-  matchups     FantasyMatchup[]
-  trades       FantasyTrade[]
-  chatMessages FantasyChatMessage[]
+  members        FantasyLeagueMember[]
+  picks          FantasyDraftPick[]
+  matchups       FantasyMatchup[]
+  trades         FantasyTrade[]
+  chatMessages   FantasyChatMessage[]
+  weeklyStarters FantasyWeeklyStarter[]
 }
 
 model FantasyLeagueMember {
@@ -258,11 +259,12 @@ model FantasyLeagueMember {
   joinedAt        DateTime          @default(now())
 
   picks          FantasyDraftPick[]
-  matchupsAsA    FantasyMatchup[]     @relation("FantasyMatchupMemberA")
-  matchupsAsB    FantasyMatchup[]     @relation("FantasyMatchupMemberB")
-  tradesProposed FantasyTrade[]       @relation("TradeProposer")
-  tradesReceived FantasyTrade[]       @relation("TradeRecipient")
+  matchupsAsA    FantasyMatchup[]        @relation("FantasyMatchupMemberA")
+  matchupsAsB    FantasyMatchup[]        @relation("FantasyMatchupMemberB")
+  tradesProposed FantasyTrade[]          @relation("TradeProposer")
+  tradesReceived FantasyTrade[]          @relation("TradeRecipient")
   chatMessages   FantasyChatMessage[]
+  weeklyStarters FantasyWeeklyStarter[]
 
   @@unique([leagueId, userId])
 }
@@ -293,13 +295,35 @@ model FantasyDraftPick {
   // been traded; "currently rostered" everywhere else means filtering on droppedAt: null.
   droppedAt      DateTime?
 
-  tradeItems FantasyTradeItem[]
+  tradeItems     FantasyTradeItem[]
+  weeklyStarters FantasyWeeklyStarter[]
 
   @@unique([leagueId, pickNo])
   // Not unique: a dropped player must be re-addable by anyone. "Not currently rostered" is
   // enforced in the app layer (findFirst + droppedAt: null) inside a Serializable
   // transaction, same approach executeDraftPick already uses for its own uniqueness check.
   @@index([leagueId, nflverseId])
+}
+
+// One row = "this pick is a starter for this member in this week" — a priority-membership
+// set, not a labeled-slot assignment (slot labels are cosmetic/derived — see fantasy-scoring.ts,
+// computeWeeklyLineup's takeTop). No rows for a (memberId, week) means "no manual lineup set —
+// fall back to the greedy optimizer." A member's most recent week <= N with any rows is treated
+// as N's default (carried forward at read time until the member explicitly touches that week
+// again) — see league-scoring-context.ts's lineupFor.
+model FantasyWeeklyStarter {
+  id       String              @id @default(cuid())
+  leagueId String
+  league   FantasyLeague       @relation(fields: [leagueId], references: [id])
+  memberId String
+  member   FantasyLeagueMember @relation(fields: [memberId], references: [id])
+  week     Int
+  pickId   String
+  pick     FantasyDraftPick    @relation(fields: [pickId], references: [id])
+  setAt    DateTime            @default(now())
+
+  @@unique([leagueId, memberId, week, pickId])
+  @@index([leagueId, memberId, week])
 }
 
 // The season schedule, plus an optional frozen historical score. For an organically-created
