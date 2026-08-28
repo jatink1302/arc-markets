@@ -2,6 +2,7 @@ import Image from "next/image";
 import { NavLinks } from "@/components/nav/nav-links";
 import { SettingsSheet } from "@/components/settings/settings-sheet";
 import { BalanceDisplay } from "@/components/nav/balance-display";
+import { cn } from "@/lib/utils";
 
 export function TopNav({
   leagueName,
@@ -13,7 +14,13 @@ export function TopNav({
   email: string;
 }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+    <header
+      className={cn(
+        "sticky top-0 z-10",
+        "border-b border-white/10 bg-background/40 backdrop-blur-2xl backdrop-saturate-200",
+        "shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.1)]",
+      )}
+    >
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3">
           <SettingsSheet leagueName={leagueName} email={email} />

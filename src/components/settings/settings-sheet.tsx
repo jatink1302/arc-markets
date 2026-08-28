@@ -30,7 +30,7 @@ export function SettingsSheet({
       <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Settings" />}>
         <Menu className="h-5 w-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="flex flex-col bg-background">
+      <SheetContent side="left" className="flex flex-col bg-background/55">
         <SheetHeader>
           <SheetTitle className="font-heading text-lg uppercase tracking-wide">
             Settings

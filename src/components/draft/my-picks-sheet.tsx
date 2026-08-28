@@ -66,8 +66,13 @@ export function MyPicksSheet({
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <div className="relative max-h-[75vh] overflow-y-auto rounded-t-2xl border-t border-border bg-card">
-            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card px-4 py-3">
+          <div
+            className={cn(
+              "relative max-h-[75vh] overflow-y-auto rounded-t-[28px] border-t border-white/15 bg-card/55",
+              "backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)]",
+            )}
+          >
+            <div className="sticky top-0 flex items-center justify-between border-b border-white/10 bg-card/70 px-4 py-3 backdrop-blur-2xl">
               <h3 className="font-heading text-sm uppercase tracking-wide text-foreground">
                 My Team ({picks.length})
               </h3>
