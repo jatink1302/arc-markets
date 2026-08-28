@@ -4,18 +4,14 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState } from "@/lib/sleeper";
 import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
-import {
-  computeSeasonStandings,
-  projectedPointsForPlayer,
-  FLEX_ELIGIBLE,
-  SUPERFLEX_ELIGIBLE,
-} from "@/lib/fantasy-scoring";
+import { computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
+import { buildStarterRows } from "@/lib/native-starters";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { TeamAvatar } from "@/components/matchup/team-avatar";
 import { WeekSelect } from "../../week-select";
-import { StartersView, type StarterRow, type BenchOption } from "../../starters-view";
+import { StartersView } from "../../starters-view";
 
 // Isolated from the page component body on purpose — react-hooks/purity flags a direct
 // Date.now() call inside a component's render, even a Server Component's.
@@ -175,80 +171,17 @@ export default async function TeamSchedulePage({
         ? importedMatchup.importedPointsA
         : importedMatchup.importedPointsB) !== null
     : false;
-  const canEditLineup = isOwner && !isImportedWeek;
-  const now = nowMs();
-
-  function scheduleLabelFor(team: string | null): { label: string; locked: boolean } {
-    if (!team) return { label: "FA", locked: false };
-    const entry = schedule.get(team)?.get(selectedWeek);
-    if (!entry) return { label: "Bye", locked: false };
-    const weekday = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      weekday: "short",
-    }).format(entry.kickoffAt);
-    const time = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(entry.kickoffAt);
-    return {
-      label: `${weekday} ${time} ${entry.isHome ? "vs" : "@"} ${entry.opponent}`,
-      locked: entry.kickoffAt.getTime() <= now,
-    };
-  }
-
-  function isEligibleForSlot(position: string | null, slot: string): boolean {
-    if (!position) return false;
-    if (slot === "FLEX") return FLEX_ELIGIBLE.has(position);
-    if (slot === "SUPERFLEX") return SUPERFLEX_ELIGIBLE.has(position);
-    return position === slot;
-  }
-
-  function benchOptionFor(pick: (typeof lineup.bench)[number]): BenchOption {
-    return {
-      pickId: pick.id,
-      playerName: pick.playerName,
-      playerTeam: pick.playerTeam,
-      playerPosition: pick.playerPosition,
-      headshotUrl: nflverseRosters.byGsisId.get(pick.nflverseId)?.headshotUrl ?? null,
-      projectedPoints: projectedPointsForPlayer(pick.nflverseId, previousSeasonStats),
-    };
-  }
-
-  const lineup = ctx.lineupFor(memberId, selectedWeek);
-  // An imported week's real score came from Sleeper's own scoring rules, which Summit's
-  // engine isn't guaranteed to reproduce exactly (see the FantasyMatchup schema comment) —
-  // showing a Summit-recomputed lineup/per-player breakdown here would present a fabricated
-  // "starters" list that might not be what was actually started, or sum to the real score.
-  const starterRows: StarterRow[] = isImportedWeek
-    ? []
-    : lineup.starters.map((s) => {
-        const { label, locked } = scheduleLabelFor(s.playerTeam);
-        const hasStats =
-          ctx.weekStats.get(s.nflverseId)?.some((l) => l.week === selectedWeek) ?? false;
-        return {
-          pickId: s.id,
-          slot: s.slot,
-          playerName: s.playerName,
-          playerTeam: s.playerTeam,
-          playerPosition: s.playerPosition,
-          headshotUrl: nflverseRosters.byGsisId.get(s.nflverseId)?.headshotUrl ?? null,
-          scheduleLabel: label,
-          projectedPoints: projectedPointsForPlayer(s.nflverseId, previousSeasonStats),
-          points: hasStats ? s.points : null,
-          locked,
-          benchOptions:
-            canEditLineup && !locked
-              ? lineup.bench
-                  .filter(
-                    (b) =>
-                      isEligibleForSlot(b.playerPosition, s.slot) &&
-                      !scheduleLabelFor(b.playerTeam).locked,
-                  )
-                  .map(benchOptionFor)
-              : [],
-        };
-      });
+  const starterRows = buildStarterRows({
+    ctx,
+    memberId,
+    week: selectedWeek,
+    isOwner,
+    isImportedWeek,
+    nflverseRosters,
+    schedule,
+    previousSeasonStats,
+    now: nowMs(),
+  });
 
   return (
     <div className="flex flex-col items-center gap-4">

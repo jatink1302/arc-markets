@@ -3,9 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNflState } from "@/lib/sleeper";
-import { getNflverseRosters, getNflverseWeeklyStats } from "@/lib/nflverse";
+import { getNflverseRosters, getNflverseSchedule, getNflverseWeeklyStats } from "@/lib/nflverse";
 import { computeFantasyPoints, computeSeasonStandings } from "@/lib/fantasy-scoring";
 import { buildSeasonScoringContext } from "@/lib/league-scoring-context";
+import { buildStarterRows } from "@/lib/native-starters";
 import { resolveNativeMemberLogoUrls } from "@/lib/roster";
 import { SEASON_WEEKS } from "@/lib/fantasy-schedule";
 import { LeagueFormingView } from "./league-forming-view";
@@ -18,9 +19,17 @@ import { SeasonStandingsView } from "./season-standings-view";
 import { TradesView, type TradeRowData } from "./trades-view";
 import { FreeAgentsView, type FreeAgentPlayer } from "./free-agents-view";
 import { ActivityView, type ActivityEntry } from "./activity-view";
+import { WeekSelect } from "./week-select";
+import { StartersView } from "./starters-view";
 import { totalRosterSlots, type RosterSettings, type ScoringSettings } from "@/lib/fantasy-defaults";
 
 const DRAFT_ELIGIBLE_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
+
+// Isolated from the page component body on purpose — react-hooks/purity flags a direct
+// Date.now() call inside a component's render, even a Server Component's.
+function nowMs(): number {
+  return Date.now();
+}
 
 export default async function LeaguePage({
   params,
@@ -107,7 +116,7 @@ export default async function LeaguePage({
   } | null = null;
 
   if (league.status === "ACTIVE") {
-    const [ctx, nflverseRosters] = await Promise.all([
+    const [ctx, nflverseRosters, schedule, previousSeasonStats] = await Promise.all([
       buildSeasonScoringContext(
         {
           season: league.season,
@@ -130,11 +139,44 @@ export default async function LeaguePage({
         liveState,
       ),
       getNflverseRosters(league.season),
+      getNflverseSchedule(league.season),
+      getNflverseWeeklyStats(liveState.previous_season),
     ]);
 
     const selectedWeek = weekParam
       ? Math.min(Math.max(Number(weekParam) || 1, 1), SEASON_WEEKS)
       : ctx.clampedCurrentWeek;
+
+    const myImportedMatchup = league.matchups.find(
+      (m) => m.week === selectedWeek && (m.memberAId === me.id || m.memberBId === me.id),
+    );
+    const myWeekIsImported = myImportedMatchup
+      ? (myImportedMatchup.memberAId === me.id
+          ? myImportedMatchup.importedPointsA
+          : myImportedMatchup.importedPointsB) !== null
+      : false;
+    const myStarterRows = buildStarterRows({
+      ctx,
+      memberId: me.id,
+      week: selectedWeek,
+      isOwner: true,
+      isImportedWeek: myWeekIsImported,
+      nflverseRosters,
+      schedule,
+      previousSeasonStats,
+      now: nowMs(),
+    });
+    const myTeamSlot = (
+      <div className="flex flex-col gap-4">
+        <WeekSelect basePath={`/leagues/${league.id}`} week={selectedWeek} seasonWeeks={SEASON_WEEKS} />
+        <StartersView
+          leagueId={league.id}
+          week={selectedWeek}
+          starters={myStarterRows}
+          isImportedWeek={myWeekIsImported}
+        />
+      </div>
+    );
 
     const teamNameByMember = new Map(
       league.members.map((m) => [m.id, m.teamName ?? m.user?.email ?? "Unclaimed Team"]),
@@ -344,6 +386,7 @@ export default async function LeaguePage({
 
     const rostersSectionSlot = (
       <RostersSectionView
+        myTeamSlot={myTeamSlot}
         rostersSlot={
           <LeagueRostersView
             leagueId={league.id}

@@ -12,19 +12,24 @@ function CountBadge({ count }: { count: number }) {
 }
 
 export function RostersSectionView({
+  myTeamSlot,
   rostersSlot,
   freeAgentsSlot,
   tradesSlot,
   pendingTradesCount,
 }: {
+  myTeamSlot: React.ReactNode;
   rostersSlot: React.ReactNode;
   freeAgentsSlot: React.ReactNode;
   tradesSlot: React.ReactNode;
   pendingTradesCount: number;
 }) {
   return (
-    <Tabs defaultValue="rosters" className="w-full">
+    <Tabs defaultValue="myTeam" className="w-full">
       <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="myTeam" className="shrink-0 grow-0">
+          My Team
+        </TabsTrigger>
         <TabsTrigger value="rosters" className="shrink-0 grow-0">
           Rosters
         </TabsTrigger>
@@ -36,6 +41,9 @@ export function RostersSectionView({
           <CountBadge count={pendingTradesCount} />
         </TabsTrigger>
       </TabsList>
+      <TabsContent value="myTeam" className="mt-4">
+        {myTeamSlot}
+      </TabsContent>
       <TabsContent value="rosters" className="mt-4">
         {rostersSlot}
       </TabsContent>
